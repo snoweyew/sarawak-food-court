@@ -111,12 +111,32 @@
     
     <script src="../js/app.js"></script>
     <script src="../js/cart.js"></script>
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         let currentStall = null;
         let currentItem = null;
         let menuItems = [];
+        let supabase;
+        
+        // Initialize Supabase
+        function initializeSupabase() {
+            try {
+                const SUPABASE_URL = 'https://mtmkghuhhrerlcubhzot.supabase.co';
+                const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10bWtnaHVoaHJlcmxjdWJoem90Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1Mzc5NzIsImV4cCI6MjA3NzExMzk3Mn0.kA-NUWidhSRNPotmVe3KIclk8LpizR26DzxIBn5C1rA';
+                
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                console.log('✅ Supabase connected!');
+                return true;
+            } catch (error) {
+                console.error('❌ Failed to initialize Supabase:', error);
+                return false;
+            }
+        }
         
         document.addEventListener('DOMContentLoaded', async () => {
+            initializeSupabase();
+            
             const urlParams = new URLSearchParams(window.location.search);
             const stallId = parseInt(urlParams.get('stall'));
             
@@ -131,58 +151,134 @@
         
         async function loadStallAndMenu(stallId) {
             try {
-                // Load stall info
-                const stallsResponse = await fetch('../data/stalls.json');
-                const stalls = await stallsResponse.json();
-                currentStall = stalls.find(s => s.id === stallId);
+                console.log('🍽️ Loading menu for stall ID:', stallId);
                 
-                if (!currentStall) {
-                    throw new Error('Stall not found');
+                // Try to load from Supabase first
+                if (supabase) {
+                    // Load stall info from database
+                    const { data: stallData, error: stallError } = await supabase
+                        .from('hawker_stalls')
+                        .select('*')
+                        .eq('id', stallId)
+                        .single();
+                    
+                    if (stallError) throw stallError;
+                    
+                    if (stallData) {
+                        currentStall = {
+                            id: stallData.id,
+                            name: stallData.stall_name,
+                            category: stallData.cuisine_type,
+                            description: stallData.description || 'Delicious food awaits!',
+                            image: stallData.image_url || 'https://via.placeholder.com/400x300?text=Food+Stall',
+                            rating: 4.5
+                        };
+                        
+                        console.log('✅ Stall loaded from database:', currentStall);
+                        
+                        // Display stall info
+                        document.getElementById('stallName').textContent = currentStall.name;
+                        document.getElementById('stallCategory').textContent = currentStall.category;
+                        
+                        document.getElementById('stallBanner').innerHTML = `
+                            <div class="banner-image" style="background-image: url('${currentStall.image}')"></div>
+                            <div class="banner-info">
+                                <p>${currentStall.description}</p>
+                                <div class="banner-meta">
+                                    <span><i class="fas fa-star"></i> ${currentStall.rating}</span>
+                                    <span><i class="fas fa-clock"></i> 15-20 min</span>
+                                </div>
+                            </div>
+                        `;
+                        
+                        // Load menu items from database
+                        const { data: menuData, error: menuError } = await supabase
+                            .from('menu_items')
+                            .select('*')
+                            .eq('stall_id', stallId)
+                            .eq('available', true)
+                            .order('category', { ascending: true });
+                        
+                        if (menuError) throw menuError;
+                        
+                        // Transform menu data
+                        menuItems = menuData.map(item => ({
+                            id: item.id,
+                            stallId: item.stall_id,
+                            name: item.name,
+                            description: item.description || '',
+                            price: parseFloat(item.price),
+                            category: item.category || 'Main',
+                            image: item.image_url || 'https://via.placeholder.com/300x200?text=Food',
+                            available: item.available,
+                            isPopular: false
+                        }));
+                        
+                        console.log('✅ Menu items loaded from database:', menuItems.length, 'items');
+                        
+                        // Extract unique categories
+                        const categories = [...new Set(menuItems.map(item => item.category))];
+                        displayCategories(categories);
+                        displayMenu(menuItems);
+                        
+                        return; // Success, exit function
+                    }
                 }
                 
-                // Display stall info
-                document.getElementById('stallName').textContent = currentStall.name;
-                document.getElementById('stallCategory').textContent = currentStall.category;
-                
-                document.getElementById('stallBanner').innerHTML = `
-                    <div class="banner-image" style="background-image: url('${currentStall.image}')"></div>
-                    <div class="banner-info">
-                        <p>${currentStall.description}</p>
-                        <div class="banner-meta">
-                            <span><i class="fas fa-star"></i> ${currentStall.rating}</span>
-                            <span><i class="fas fa-clock"></i> 15-20 min</span>
-                        </div>
-                    </div>
-                `;
-                
-                // Load menu items - check localStorage first, then fallback to JSON
-                let allMenus = [];
-                const localMenus = localStorage.getItem('menus');
-                
-                if (localMenus) {
-                    allMenus = JSON.parse(localMenus);
-                } else {
-                    const menuResponse = await fetch('../data/menus.json');
-                    allMenus = await menuResponse.json();
-                    localStorage.setItem('menus', JSON.stringify(allMenus));
-                }
-                
-                menuItems = allMenus.filter(item => item.stallId === stallId && item.available);
-                
-                // Extract unique categories
-                const categories = [...new Set(menuItems.map(item => item.category))];
-                displayCategories(categories);
-                displayMenu(menuItems);
+                // Fallback to JSON if database fails
+                console.log('⚠️ Falling back to JSON files');
+                await loadFromJSON(stallId);
                 
             } catch (error) {
-                console.error('Error loading menu:', error);
-                document.getElementById('menuGrid').innerHTML = `
-                    <div class="error-message">
-                        <i class="fas fa-exclamation-circle"></i>
-                        <p>Unable to load menu. Please try again.</p>
-                    </div>
-                `;
+                console.error('❌ Error loading menu:', error);
+                // Try JSON fallback
+                try {
+                    await loadFromJSON(stallId);
+                } catch (fallbackError) {
+                    document.getElementById('menuGrid').innerHTML = `
+                        <div class="error-message">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <p>Unable to load menu. Please try again.</p>
+                        </div>
+                    `;
+                }
             }
+        }
+        
+        async function loadFromJSON(stallId) {
+            // Load stall info
+            const stallsResponse = await fetch('../data/stalls.json');
+            const stalls = await stallsResponse.json();
+            currentStall = stalls.find(s => s.id === stallId);
+            
+            if (!currentStall) {
+                throw new Error('Stall not found');
+            }
+            
+            // Display stall info
+            document.getElementById('stallName').textContent = currentStall.name;
+            document.getElementById('stallCategory').textContent = currentStall.category;
+            
+            document.getElementById('stallBanner').innerHTML = `
+                <div class="banner-image" style="background-image: url('${currentStall.image}')"></div>
+                <div class="banner-info">
+                    <p>${currentStall.description}</p>
+                    <div class="banner-meta">
+                        <span><i class="fas fa-star"></i> ${currentStall.rating}</span>
+                        <span><i class="fas fa-clock"></i> 15-20 min</span>
+                    </div>
+                </div>
+            `;
+            
+            // Load menu items
+            const menuResponse = await fetch('../data/menus.json');
+            const allMenus = await menuResponse.json();
+            menuItems = allMenus.filter(item => item.stallId === stallId && item.available);
+            
+            // Extract unique categories
+            const categories = [...new Set(menuItems.map(item => item.category))];
+            displayCategories(categories);
+            displayMenu(menuItems);
         }
         
         function displayCategories(categories) {

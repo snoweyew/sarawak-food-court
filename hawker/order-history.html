@@ -13,22 +13,16 @@
 <body class="hawker-dashboard">
     <!-- Top Navigation -->
     <nav class="top-nav">
-        <div class="nav-brand" style="display: flex; width: 100%; justify-content: space-between; align-items: center;">
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <i class="fas fa-history"></i>
-                <span style="font-size: 0.95em; font-weight: 500;">History</span>
-            </div>
-            <div style="display: flex; flex-direction: column; align-items: center; flex: 1;">
-                <span id="stallName" style="font-size: 1.1em; font-weight: 600;">Loading...</span>
-                <span class="filter-label" id="filterLabel" style="font-size: 0.75em; opacity: 0.7; margin-top: 2px;">All Time</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <span id="foodCourtName" style="font-size: 0.85em; opacity: 0.75;">Loading...</span>
-                <button class="calendar-icon-btn" onclick="toggleDateFilter()" style="margin: 0;">
-                    <i class="fas fa-calendar-alt"></i>
-                </button>
-            </div>
+        <div class="nav-brand">
+            <i class="fas fa-history"></i>
+            <span>History</span>
         </div>
+        <div style="position: absolute; left: 50%; transform: translateX(-50%);">
+            <span id="stallName" style="font-size: 1.1rem; font-weight: 600; color: #2C3E50;"></span>
+        </div>
+        <button class="calendar-icon-btn" onclick="toggleDateFilter()">
+            <i class="fas fa-calendar-alt"></i>
+        </button>
     </nav>
     
     <!-- Date Filter Popup -->
@@ -155,7 +149,10 @@
             }
             session = JSON.parse(sessionData);
             
-            // Load hawker stall information from Supabase to get food court name
+            // Immediately show stall name from session
+            document.getElementById('stallName').textContent = session.stallName || 'My Stall';
+            
+            // Load hawker stall information from Supabase to get updated data
             try {
                 const { data, error } = await supabase
                     .from('hawker_stalls')
@@ -173,15 +170,13 @@
                 if (error) throw error;
                 
                 hawkerStall = data;
-                // Display food court name and stall name
-                document.getElementById('foodCourtName').textContent = data.food_courts?.name || 'Food Court';
+                // Update stall name if available
                 document.getElementById('stallName').textContent = data.stall_name || session.stallName || 'My Stall';
                 
                 console.log('✅ Hawker stall loaded:', hawkerStall);
             } catch (error) {
                 console.error('❌ Error loading hawker stall:', error);
-                document.getElementById('foodCourtName').textContent = 'Food Court';
-                document.getElementById('stallName').textContent = session.stallName || 'My Stall';
+                // Keep the session stall name already displayed
             }
         }
         

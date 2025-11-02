@@ -226,25 +226,38 @@
                 console.log('My Stall ID from session:', myStallId);
                 console.log('My Stall Name:', session.stallName);
                 
-                // Check localStorage for menu data
-                const localMenus = localStorage.getItem('menus');
-                let allMenus = [];
+                // Load menu items from Supabase database
+                console.log('📥 Loading menu items from database...');
+                const { data, error } = await supabase
+                    .from('menu_items')
+                    .select('*')
+                    .eq('stall_id', myStallId)
+                    .order('created_at', { ascending: false });
                 
-                if (localMenus) {
-                    console.log('Loading menus from localStorage');
-                    allMenus = JSON.parse(localMenus);
-                } else {
-                    console.log('No menus in localStorage, starting with empty array');
-                    allMenus = [];
-                    localStorage.setItem('menus', JSON.stringify(allMenus));
+                if (error) {
+                    console.error('❌ Database error:', error);
+                    throw error;
                 }
                 
-                console.log('Total menus loaded:', allMenus.length);
-                menuItems = allMenus.filter(item => item.stallId === myStallId);
-                console.log('My menu items:', menuItems.length);
+                // Transform database data to match app format
+                menuItems = (data || []).map(item => ({
+                    id: item.id,
+                    stallId: item.stall_id,
+                    name: item.name,
+                    description: item.description || '',
+                    price: parseFloat(item.price),
+                    category: item.category || 'Main',
+                    image: item.image_url || 'https://via.placeholder.com/300x200?text=Food',
+                    available: item.available !== false,
+                    isPopular: item.is_popular || false
+                }));
+                
+                console.log('✅ Loaded menu items from database:', menuItems.length);
                 displayMenu();
+                
             } catch (error) {
                 console.error('Error loading menu:', error);
+                showToast('Failed to load menu items: ' + error.message, 'error');
                 displayMenu();
             }
         }
@@ -346,7 +359,7 @@
             editingItemId = null;
         }
         
-        function saveItem(event) {
+        async function saveItem(event) {
             event.preventDefault();
             
             // Use the stored stall ID
@@ -356,70 +369,108 @@
             }
             
             const itemData = {
-                id: editingItemId || Date.now(),
-                stallId: myStallId,
+                stall_id: myStallId,
                 name: document.getElementById('itemName').value,
                 price: parseFloat(document.getElementById('itemPrice').value),
                 description: document.getElementById('itemDescription').value,
                 category: document.getElementById('itemCategory').value,
-                image: document.getElementById('itemImage').value || 'https://via.placeholder.com/300?text=No+Image',
+                image_url: document.getElementById('itemImage').value || 'https://via.placeholder.com/300?text=No+Image',
                 available: document.getElementById('itemAvailable').checked,
-                isPopular: document.getElementById('itemPopular').checked
+                is_popular: document.getElementById('itemPopular').checked
             };
             
-            console.log('Saving item:', itemData);
+            console.log('💾 Saving item to database:', itemData);
             
-            // Get all menus from localStorage
-            let allMenus = JSON.parse(localStorage.getItem('menus') || '[]');
-            
-            if (editingItemId) {
-                // Update existing item
-                const localIndex = menuItems.findIndex(i => i.id === editingItemId);
-                if (localIndex !== -1) {
-                    menuItems[localIndex] = itemData;
+            try {
+                if (editingItemId) {
+                    // Update existing item in database
+                    const { data, error } = await supabase
+                        .from('menu_items')
+                        .update(itemData)
+                        .eq('id', editingItemId)
+                        .select()
+                        .single();
+                    
+                    if (error) throw error;
+                    
+                    console.log('✅ Item updated in database:', data);
+                    showToast('Item updated successfully!');
+                } else {
+                    // Add new item to database
+                    const { data, error } = await supabase
+                        .from('menu_items')
+                        .insert([itemData])
+                        .select()
+                        .single();
+                    
+                    if (error) throw error;
+                    
+                    console.log('✅ Item added to database:', data);
+                    showToast('Item added successfully!');
                 }
                 
-                // Update in all menus array
-                const globalIndex = allMenus.findIndex(i => i.id === editingItemId);
-                if (globalIndex !== -1) {
-                    allMenus[globalIndex] = itemData;
-                }
+                closeItemModal();
+                await loadMenu(); // Reload from database
                 
-                showToast('Item updated successfully!');
-            } else {
-                // Add new item
-                menuItems.push(itemData);
-                allMenus.push(itemData);
-                showToast('Item added successfully!');
+            } catch (error) {
+                console.error('❌ Error saving item:', error);
+                showToast('Failed to save item: ' + error.message, 'error');
             }
-            
-            // Save to localStorage
-            localStorage.setItem('menus', JSON.stringify(allMenus));
-            console.log('Saved to localStorage. Total menus:', allMenus.length);
-            
-            closeItemModal();
-            displayMenu();
         }
         
-        function toggleAvailability(itemId) {
+        async function toggleAvailability(itemId) {
             const item = menuItems.find(i => i.id === itemId);
-            if (item) {
-                item.available = !item.available;
+            if (!item) return;
+            
+            const newStatus = !item.available;
+            
+            try {
+                // Update in database
+                const { error } = await supabase
+                    .from('menu_items')
+                    .update({ available: newStatus })
+                    .eq('id', itemId);
                 
-                // Update in localStorage
-                const allMenus = JSON.parse(localStorage.getItem('menus') || '[]');
-                const globalIndex = allMenus.findIndex(i => i.id === itemId);
-                if (globalIndex !== -1) {
-                    allMenus[globalIndex].available = item.available;
-                    localStorage.setItem('menus', JSON.stringify(allMenus));
-                }
+                if (error) throw error;
                 
+                // Update local state
+                item.available = newStatus;
                 displayMenu();
-                showToast(`Item marked as ${item.available ? 'available' : 'unavailable'}`);
+                showToast(`Item marked as ${newStatus ? 'available' : 'unavailable'}`);
+                
+                console.log('✅ Availability updated for item:', itemId);
+            } catch (error) {
+                console.error('❌ Error updating availability:', error);
+                showToast('Failed to update availability', 'error');
             }
         }
         
-        function deleteItem(itemId) {
+        async function deleteItem(itemId) {
+            if (!confirm('Are you sure you want to delete this item?')) return;
+            
+            try {
+                // Delete from database
+                const { error } = await supabase
+                    .from('menu_items')
+                    .delete()
+                    .eq('id', itemId);
+                
+                if (error) throw error;
+                
+                // Remove from local array
+                menuItems = menuItems.filter(i => i.id !== itemId);
+                displayMenu();
+                showToast('Item deleted successfully!');
+                
+                console.log('✅ Item deleted from database:', itemId);
+            } catch (error) {
+                console.error('❌ Error deleting item:', error);
+                showToast('Failed to delete item', 'error');
+            }
+        }
+        
+        // Legacy function for localStorage cleanup (no longer needed)
+        function deleteItemOld(itemId) {
             if (confirm('Are you sure you want to delete this item?')) {
                 // Remove from local array
                 menuItems = menuItems.filter(i => i.id !== itemId);

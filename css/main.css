@@ -749,3 +749,68 @@ button:disabled {
         display: none !important;
     }
 }
+t-align: right; }
+.text-muted { color: var(--text-secondary); }
+.text-success { color: var(--success-color); }
+.text-danger { color: var(--danger-color); }
+
+.mt-1 { margin-top: 1rem; }
+.mb-1 { margin-bottom: 1rem; }
+.mt-2 { margin-top: 2rem; }
+.mb-2 { margin-bottom: 2rem; }
+
+.d-flex { display: flex; }
+.align-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-1 { gap: 1rem; }
+
+/* Responsive */
+@media (max-width: 768px) {
+    h1 { font-size: 1.5rem; }
+    h2 { font-size: 1.25rem; }
+    h3 { font-size: 1.1rem; }
+    
+    .modal-content {
+        max-width: 100%;
+        max-height: 100vh;
+        border-radius: 0;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .header,
+    .bottom-nav,
+    .btn-primary,
+    .btn-secondary,
+    .modal {
+        display: none !important;
+    }
+}
+>>>>>>> a26ce05 (Initial commit - Sarawak Food Court ordering system)
+etween; }
+.gap-1 { gap: 1rem; }
+
+/* Responsive */
+@media (max-width: 768px) {
+    h1 { font-size: 1.5rem; }
+    h2 { font-size: 1.25rem; }
+    h3 { font-size: 1.1rem; }
+    
+    .modal-content {
+        max-width: 100%;
+        max-height: 100vh;
+        border-radius: 0;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .header,
+    .bottom-nav,
+    .btn-primary,
+    .btn-secondary,
+    .modal {
+        display: none !important;
+    }
+}

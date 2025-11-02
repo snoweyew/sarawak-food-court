@@ -17,17 +17,8 @@
     <!-- Top Navigation -->
     <nav class="top-nav">
         <div class="nav-brand">
-            <i class="fas fa-utensils"></i>
+            <a href="dashboard.html"><i class="fas fa-arrow-left"></i></a>
             <span>Food Courts Management</span>
-        </div>
-        <div class="nav-actions">
-            <button class="user-btn admin-user-btn" onclick="window.location.href='profile.html'">
-                <i class="fas fa-user-circle"></i>
-                <span id="adminName">Admin</span>
-            </button>
-            <button class="logout-btn-mini" onclick="logout()" title="Logout">
-                <i class="fas fa-sign-out-alt"></i>
-            </button>
         </div>
     </nav>
     
@@ -399,7 +390,7 @@
                 return;
             }
             const session = JSON.parse(sessionData);
-            document.getElementById('adminName').textContent = session.name;
+            console.log('✅ Admin authenticated:', session.name);
         }
         
         async function loadFoodCourts() {

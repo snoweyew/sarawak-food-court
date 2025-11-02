@@ -52,9 +52,16 @@
                         <img src="../assets/images/qr-codes/default-qr.png" alt="Current QR" id="qrPreview">
                     </div>
                     <div class="qr-upload-controls">
-                        <input type="text" id="qrUrl" placeholder="Enter QR code image URL">
+                        <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                            <button class="btn-primary" onclick="document.getElementById('qrFileInput').click()" style="flex: 1;">
+                                <i class="fas fa-image"></i> Choose Image File
+                            </button>
+                            <input type="file" id="qrFileInput" accept="image/*" style="display: none;" onchange="handleFileUpload(event)">
+                        </div>
+                        <div style="text-align: center; margin: 0.75rem 0; color: #7F8C8D; font-weight: 600;">OR</div>
+                        <input type="text" id="qrUrl" placeholder="Enter QR code image URL" style="margin-bottom: 0.5rem;">
                         <button class="btn-primary" onclick="updateQR()">
-                            <i class="fas fa-upload"></i> Update QR Code
+                            <i class="fas fa-link"></i> Update from URL
                         </button>
                         <p class="help-text">Upload your payment QR code (Touch 'n Go, GrabPay, etc.)</p>
                     </div>
@@ -257,11 +264,116 @@
             }
         }
         
-        function updateQR() {
+        async function handleFileUpload(event) {
+            const file = event.target.files[0];
+            
+            if (!file) return;
+            
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                showToast('Please select an image file', 'error');
+                return;
+            }
+            
+            // Validate file size (max 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                showToast('Image size must be less than 5MB', 'error');
+                return;
+            }
+            
+            try {
+                showToast('Uploading image...', 'warning');
+                
+                // Convert image to base64
+                const reader = new FileReader();
+                reader.onload = async function(e) {
+                    const base64Image = e.target.result;
+                    
+                    try {
+                        const session = JSON.parse(localStorage.getItem('hawkerSession') || sessionStorage.getItem('hawkerSession'));
+                        
+                        if (!session || !session.stallId) {
+                            showToast('Session expired. Please login again.', 'error');
+                            setTimeout(() => window.location.href = 'login.html', 1500);
+                            return;
+                        }
+                        
+                        // Update QR code in database with base64 image
+                        const { data, error } = await supabase
+                            .from('hawker_stalls')
+                            .update({ qr_code_url: base64Image })
+                            .eq('id', session.stallId)
+                            .select()
+                            .single();
+                        
+                        if (error) throw error;
+                        
+                        // Update preview
+                        document.getElementById('qrPreview').src = base64Image;
+                        showToast('QR code image uploaded successfully!');
+                        console.log('✅ QR code uploaded:', data);
+                        
+                    } catch (error) {
+                        console.error('❌ Error uploading QR code:', error);
+                        showToast('Failed to upload QR code: ' + error.message, 'error');
+                    }
+                };
+                
+                reader.onerror = function() {
+                    showToast('Failed to read image file', 'error');
+                };
+                
+                reader.readAsDataURL(file);
+                
+            } catch (error) {
+                console.error('❌ Error processing image:', error);
+                showToast('Failed to process image: ' + error.message, 'error');
+            }
+        }
+
+        async function updateQR() {
             const qrUrl = document.getElementById('qrUrl').value;
-            if (qrUrl) {
+            
+            if (!qrUrl) {
+                showToast('Please enter a QR code URL', 'error');
+                return;
+            }
+            
+            // Validate URL format
+            try {
+                new URL(qrUrl);
+            } catch (e) {
+                showToast('Please enter a valid URL', 'error');
+                return;
+            }
+            
+            try {
+                const session = JSON.parse(localStorage.getItem('hawkerSession') || sessionStorage.getItem('hawkerSession'));
+                
+                if (!session || !session.stallId) {
+                    showToast('Session expired. Please login again.', 'error');
+                    setTimeout(() => window.location.href = 'login.html', 1500);
+                    return;
+                }
+                
+                // Update QR code in database
+                const { data, error } = await supabase
+                    .from('hawker_stalls')
+                    .update({ qr_code_url: qrUrl })
+                    .eq('id', session.stallId)
+                    .select()
+                    .single();
+                
+                if (error) throw error;
+                
+                // Update preview
                 document.getElementById('qrPreview').src = qrUrl;
                 showToast('QR code updated successfully!');
+                console.log('✅ QR code updated:', data);
+                
+            } catch (error) {
+                console.error('❌ Error updating QR code:', error);
+                showToast('Failed to update QR code: ' + error.message, 'error');
             }
         }
         
