@@ -303,33 +303,51 @@
             
             console.log('✅ All stalls paid! Creating order...');
             
-            // Create order
-            const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-            const table = localStorage.getItem('tableNumber') || '1';
-            
-            const order = {
-                orderId: 'ORD' + Date.now(),
-                tableNumber: table,
-                items: cart,
-                subtotal: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
-                serviceCharge: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) * 0.06,
-                total: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) * 1.06,
-                status: 'pending',
-                timestamp: new Date().toISOString(),
-                stallOrders: Object.values(paymentsByStall)
-            };
-            
-            // Save order
-            const orders = JSON.parse(localStorage.getItem('orders') || '[]');
-            orders.push(order);
-            localStorage.setItem('orders', JSON.stringify(orders));
-            localStorage.setItem('currentOrder', JSON.stringify(order));
-            
-            // Clear cart
-            localStorage.setItem('cart', '[]');
-            
-            // Redirect to tracking
-            window.location.href = 'order-tracking.html?order=' + order.orderId;
+            try {
+                // Create order
+                const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+                const table = localStorage.getItem('tableNumber') || '1';
+                
+                console.log('📦 Cart items:', cart.length);
+                console.log('🪑 Table:', table);
+                
+                const order = {
+                    orderId: 'ORD' + Date.now(),
+                    tableNumber: table,
+                    items: cart,
+                    subtotal: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
+                    serviceCharge: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) * 0.06,
+                    total: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) * 1.06,
+                    status: 'pending',
+                    timestamp: new Date().toISOString(),
+                    stallOrders: Object.values(paymentsByStall)
+                };
+                
+                console.log('📋 Order created:', order.orderId);
+                
+                // Save order
+                const orders = JSON.parse(localStorage.getItem('orders') || '[]');
+                orders.push(order);
+                localStorage.setItem('orders', JSON.stringify(orders));
+                localStorage.setItem('currentOrder', JSON.stringify(order));
+                
+                console.log('💾 Order saved to localStorage');
+                
+                // Clear cart
+                localStorage.setItem('cart', '[]');
+                console.log('🗑️ Cart cleared');
+                
+                // Show success message
+                alert('✅ Order placed successfully! Redirecting to order tracking...');
+                
+                // Redirect to tracking
+                console.log('🔄 Redirecting to order-tracking.html...');
+                window.location.href = 'order-tracking.html?order=' + order.orderId;
+                
+            } catch (error) {
+                console.error('❌ Error creating order:', error);
+                alert('Error placing order: ' + error.message);
+            }
         }
         
         function showToast(message) {
