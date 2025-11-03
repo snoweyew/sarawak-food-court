@@ -142,6 +142,39 @@
             // Stop scanning
             stopScan();
 
+            // Check if QR contains a full URL (starts with http:// or https://)
+            if (decodedText.startsWith('http://') || decodedText.startsWith('https://')) {
+                // Extract parameters from URL for localStorage
+                try {
+                    const url = new URL(decodedText);
+                    const foodcourt = url.searchParams.get('foodcourt');
+                    const table = url.searchParams.get('table');
+                    const stall = url.searchParams.get('stall');
+                    
+                    // Store table number if present
+                    if (table) {
+                        localStorage.setItem('tableNumber', table);
+                    }
+                    
+                    // Store session start time
+                    localStorage.setItem('sessionStart', new Date().toISOString());
+                    
+                    // Show success message
+                    if (table) {
+                        alert(`✅ Table ${table} detected! Redirecting...`);
+                    } else {
+                        alert(`✅ QR Code detected! Redirecting...`);
+                    }
+                    
+                    // Navigate directly to the URL
+                    window.location.href = decodedText;
+                    return;
+                } catch (error) {
+                    console.error('Error parsing URL:', error);
+                    // Fall through to pattern matching below
+                }
+            }
+
             // Try extract stall id first (if QR encodes a specific stall/menu)
             const stallId = extractStallId(decodedText);
             // Extract table number as a fallback (if QR encodes the table)

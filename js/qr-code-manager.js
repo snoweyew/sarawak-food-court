@@ -12,7 +12,7 @@ const QR_CONFIG = {
     // - 'https://your-site.netlify.app'
     // - 'https://your-domain.com'
     // - 'https://yourusername.github.io/sarawak-food-court'
-    PRODUCTION_URL: 'http://localhost:5500', // ⚠️ CHANGE THIS to your deployed URL
+    PRODUCTION_URL: 'https://sarawak-order.netlify.app', // ⚠️ Your deployed Netlify URL (NO trailing slash)
     
     // Auto-detect environment (production if deployed, localhost for testing)
     USE_AUTO_DETECT: true
@@ -29,8 +29,15 @@ class QRCodeManager {
      */
     getBaseURL() {
         if (QR_CONFIG.USE_AUTO_DETECT) {
-            // Auto-detect: if hostname is localhost, use config, otherwise use current origin
-            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            // Auto-detect: if hostname is localhost/127.0.0.1/0.0.0.0, use config, otherwise use current origin
+            const isDevelopment = window.location.hostname === 'localhost' || 
+                                 window.location.hostname === '127.0.0.1' || 
+                                 window.location.hostname === '0.0.0.0' ||
+                                 window.location.hostname.startsWith('192.168.') ||
+                                 window.location.hostname.startsWith('10.') ||
+                                 window.location.port !== '';
+            
+            if (isDevelopment) {
                 // In development - check if production URL is set
                 if (QR_CONFIG.PRODUCTION_URL && !QR_CONFIG.PRODUCTION_URL.includes('localhost')) {
                     console.log('🌐 Using configured production URL for QR codes:', QR_CONFIG.PRODUCTION_URL);

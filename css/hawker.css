@@ -21,8 +21,9 @@
     background-color: var(--bg-primary);
     border-radius: 24px;
     padding: 2.5rem 2rem;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
 }
 
 .login-header {
@@ -31,23 +32,35 @@
 }
 
 .login-header i {
-    font-size: 4rem;
+    font-size: 4.5rem;
     background: linear-gradient(135deg, #FF6B35, #FF8C42);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
-    margin-bottom: 1rem;
-    display: block;
+    margin: 0 auto 1.5rem;
+    display: inline-block;
+    width: 100%;
+    text-align: center;
+    animation: iconPulse 2s ease-in-out infinite;
+}
+
+@keyframes iconPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
 }
 
 .login-header h1 {
     margin-bottom: 0.5rem;
-    font-size: 1.75rem;
+    font-size: 2rem;
+    font-weight: 700;
+    color: #2C3E50;
 }
 
 .login-header p {
     color: var(--text-secondary);
     margin: 0;
-    font-size: 0.95rem;
+    font-size: 1rem;
+    font-weight: 500;
 }
 
 .login-form {
@@ -143,6 +156,73 @@
     margin-top: 1rem;
 }
 
+/* Back Button for Login Page */
+.back-btn-login {
+    position: fixed;
+    top: 1.5rem;
+    left: 1.5rem;
+    width: 50px;
+    height: 50px;
+    background: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    color: var(--primary-color);
+    font-size: 1.3rem;
+    box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+    transition: all 0.3s ease;
+    z-index: 1000;
+}
+
+.back-btn-login:hover {
+    background: var(--primary-color);
+    color: white;
+    transform: translateX(-5px);
+    box-shadow: 0 6px 20px rgba(255, 107, 53, 0.5);
+}
+
+.back-btn-login i {
+    transition: transform 0.3s ease;
+}
+
+.back-btn-login:hover i {
+    transform: translateX(-3px);
+}
+
+/* Back Button for Admin Pages */
+.back-btn-admin {
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    width: 45px;
+    height: 45px;
+    background: transparent;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    color: var(--primary-color);
+    font-size: 1.5rem;
+    transition: all 0.3s ease;
+    z-index: 1001;
+}
+
+.back-btn-admin:hover {
+    background: rgba(255, 107, 53, 0.1);
+    transform: translateX(-3px);
+}
+
+.back-btn-admin i {
+    transition: transform 0.3s ease;
+}
+
+.back-btn-admin:hover i {
+    transform: translateX(-2px);
+}
+
 /* Dashboard Layout */
 .hawker-dashboard {
     background: linear-gradient(180deg, #F9FAFB 0%, #F3F4F6 100%);
@@ -182,8 +262,8 @@
     align-items: center;
     gap: 0.75rem;
     font-weight: 700;
-    font-size: 1.05rem;
-    color: var(--text-primary);
+    font-size: 1.1rem;
+    color: #1a1a1a;
 }
 
 .nav-brand i {
