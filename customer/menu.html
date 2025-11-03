@@ -138,7 +138,7 @@
             initializeSupabase();
             
             const urlParams = new URLSearchParams(window.location.search);
-            const stallId = parseInt(urlParams.get('stall'));
+            const stallId = urlParams.get('stall'); // Keep as string to support both numbers and UUIDs
             
             if (!stallId) {
                 window.location.href = 'home.html';
