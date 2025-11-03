@@ -289,7 +289,7 @@
             document.getElementById('total').textContent = `RM ${total.toFixed(2)}`;
         }
         
-        function confirmPayment() {
+        async function confirmPayment() {
             console.log('🔵 Confirm Payment clicked');
             console.log('📊 Paid stalls:', paidStalls.size);
             console.log('📊 Total stalls:', Object.keys(paymentsByStall).length);
@@ -304,34 +304,98 @@
             console.log('✅ All stalls paid! Creating order...');
             
             try {
-                // Create order
+                console.log('💾 Saving order to database...');
+                
+                // Get cart and table info
                 const cart = JSON.parse(localStorage.getItem('cart') || '[]');
                 const table = localStorage.getItem('tableNumber') || '1';
                 
                 console.log('📦 Cart items:', cart.length);
                 console.log('🪑 Table:', table);
                 
-                const order = {
-                    orderId: 'ORD' + Date.now(),
-                    tableNumber: table,
-                    items: cart,
-                    subtotal: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
-                    serviceCharge: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) * 0.06,
-                    total: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) * 1.06,
-                    status: 'pending',
-                    timestamp: new Date().toISOString(),
-                    stallOrders: Object.values(paymentsByStall)
-                };
+                // Calculate totals
+                const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                const serviceCharge = subtotal * 0.06;
+                const total = subtotal + serviceCharge;
                 
-                console.log('📋 Order created:', order.orderId);
+                const orderId = 'ORD' + Date.now();
+                console.log('📋 Creating order:', orderId);
                 
-                // Save order
-                const orders = JSON.parse(localStorage.getItem('orders') || '[]');
-                orders.push(order);
-                localStorage.setItem('orders', JSON.stringify(orders));
-                localStorage.setItem('currentOrder', JSON.stringify(order));
+                // Get current user
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) {
+                    throw new Error('User not authenticated');
+                }
                 
-                console.log('💾 Order saved to localStorage');
+                // 1. Create order in database
+                const { data: orderData, error: orderError } = await supabase
+                    .from('orders')
+                    .insert({
+                        order_id: orderId,
+                        table_number: table,
+                        user_id: user.id,
+                        subtotal: subtotal,
+                        service_charge: serviceCharge,
+                        total: total,
+                        status: 'pending'
+                    })
+                    .select()
+                    .single();
+                
+                if (orderError) {
+                    console.error('❌ Error creating order:', orderError);
+                    throw orderError;
+                }
+                
+                console.log('✅ Order created in database:', orderData.id);
+                
+                // 2. Create order items in database
+                const orderItems = cart.map(item => ({
+                    order_id: orderData.id,
+                    menu_item_id: item.id,
+                    stall_id: item.stallId,
+                    item_name: item.name,
+                    price: item.price,
+                    quantity: item.quantity,
+                    subtotal: item.price * item.quantity
+                }));
+                
+                const { error: itemsError } = await supabase
+                    .from('order_items')
+                    .insert(orderItems);
+                
+                if (itemsError) {
+                    console.error('❌ Error creating order items:', itemsError);
+                    throw itemsError;
+                }
+                
+                console.log('✅ Order items created:', orderItems.length);
+                
+                // 3. Create payment records for each stall
+                const paymentRecords = Object.values(paymentsByStall).map(stall => ({
+                    order_id: orderData.id,
+                    stall_id: stall.stallId,
+                    stall_name: stall.stallName,
+                    amount: stall.total,
+                    is_paid: stall.isPaid,
+                    paid_at: stall.isPaid ? new Date().toISOString() : null
+                }));
+                
+                const { error: paymentsError } = await supabase
+                    .from('order_payments')
+                    .insert(paymentRecords);
+                
+                if (paymentsError) {
+                    console.error('❌ Error creating payment records:', paymentsError);
+                    throw paymentsError;
+                }
+                
+                console.log('✅ Payment records created:', paymentRecords.length);
+                
+                // Save order ID to localStorage for tracking page
+                localStorage.setItem('currentOrderId', orderId);
+                
+                console.log('💾 Order saved successfully to database!');
                 
                 // Clear cart
                 localStorage.setItem('cart', '[]');
@@ -342,7 +406,7 @@
                 
                 // Redirect to tracking
                 console.log('🔄 Redirecting to order-tracking.html...');
-                window.location.href = 'order-tracking.html?order=' + order.orderId;
+                window.location.href = 'order-tracking.html?order=' + orderId;
                 
             } catch (error) {
                 console.error('❌ Error creating order:', error);
