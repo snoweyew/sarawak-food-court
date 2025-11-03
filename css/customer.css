@@ -104,8 +104,10 @@
 
 /* Header */
 .header {
-    position: sticky;
+    position: fixed;
     top: 0;
+    left: 0;
+    right: 0;
     background-color: var(--bg-primary);
     box-shadow: var(--shadow-sm);
     z-index: 100;
@@ -383,8 +385,10 @@
     padding: 1rem;
     overflow-x: auto;
     background-color: var(--bg-primary);
-    position: sticky;
-    top: calc(var(--header-height) + 60px);
+    position: fixed;
+    top: var(--header-height);
+    left: 0;
+    right: 0;
     z-index: 50;
     box-shadow: var(--shadow-sm);
 }
@@ -530,7 +534,7 @@
 /* Cart Summary */
 .cart-summary {
     position: fixed;
-    bottom: var(--bottom-nav-height);
+    bottom: 0;
     left: 0;
     right: 0;
     background-color: var(--bg-primary);
@@ -545,6 +549,17 @@
     align-items: center;
     max-width: 1200px;
     margin: 0 auto;
+}
+
+/* Add padding to body for fixed header and categories */
+body:has(.menu-categories) {
+    padding-top: calc(var(--header-height) + 60px);
+    padding-bottom: 100px;
+}
+
+/* Stall banner should be below fixed categories */
+.stall-banner {
+    margin-top: 0;
 }
 
 /* Bottom Navigation */
