@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup Menu Items Table - Supabase</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #667eea;
+            margin: 0 0 0.5rem 0;
+            font-size: 2rem;
+        }
+        .subtitle {
+            color: #666;
+            margin: 0 0 2rem 0;
+            font-size: 1.1rem;
+        }
+        .section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border-left: 4px solid #667eea;
+        }
+        h2 {
+            color: #333;
+            margin: 0 0 1rem 0;
+            font-size: 1.3rem;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+            justify-content: center;
+            margin: 1rem 0;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .result {
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .step {
+            display: flex;
+            align-items: start;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: white;
+            border-radius: 8px;
+        }
+        .step-number {
+            background: #667eea;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 1rem;
+            flex-shrink: 0;
+        }
+        .step-content {
+            flex: 1;
+        }
+        .step-content h3 {
+            margin: 0 0 0.5rem 0;
+            color: #333;
+        }
+        .step-content p {
+            margin: 0;
+            color: #666;
+        }
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            color: #e83e8c;
+        }
+        .sql-preview {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .icon {
+            font-size: 1.5rem;
+        }
+        ul {
+            margin: 0.5rem 0;
+            padding-left: 1.5rem;
+        }
+        li {
+            margin: 0.5rem 0;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛠️ Setup Menu Items Table</h1>
+        <p class="subtitle">Create the menu_items table in your Supabase database</p>
+
+        <div class="section">
+            <h2>📋 What This Does</h2>
+            <div class="step">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <h3>Creates the menu_items table</h3>
+                    <p>With all necessary columns for storing menu items</p>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <h3>Sets up indexes</h3>
+                    <p>For faster queries on stall_id, availability, and category</p>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <h3>Configures security policies</h3>
+                    <p>Row Level Security (RLS) for data protection</p>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-number">4</div>
+                <div class="step-content">
+                    <h3>Adds auto-update trigger</h3>
+                    <p>Automatically updates the updated_at timestamp</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>🚀 Run Setup</h2>
+            <div class="info" style="margin-bottom: 1rem;">
+                <strong>⚠️ Note:</strong> This will execute SQL directly in your Supabase database. Make sure you're connected to the correct project.
+            </div>
+            <button id="createTableBtn" onclick="createMenuItemsTable()">
+                <span class="icon">⚙️</span>
+                <span>Create menu_items Table</span>
+            </button>
+            <div id="result"></div>
+        </div>
+
+        <div class="section">
+            <h2>📜 SQL Script Preview</h2>
+            <p>Here's what will be executed:</p>
+            <div class="sql-preview" id="sqlPreview">Loading SQL script...</div>
+        </div>
+
+        <div class="section">
+            <h2>✅ After Setup</h2>
+            <ul>
+                <li>Go to <code>hawker/menu-management.html</code></li>
+                <li>Login as a hawker</li>
+                <li>Add menu items - they will now save to Supabase!</li>
+                <li>Use <code>check-menu-database.html</code> to verify</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let supabase;
+
+        // SQL Script
+        const SQL_SCRIPT = `-- Create menu_items table for hawker menu management
+
+CREATE TABLE IF NOT EXISTS public.menu_items (
+    id BIGSERIAL PRIMARY KEY,
+    stall_id BIGINT NOT NULL REFERENCES public.hawker_stalls(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    description TEXT,
+    price DECIMAL(10,2) NOT NULL,
+    category TEXT NOT NULL DEFAULT 'Main',
+    image_url TEXT,
+    availability TEXT NOT NULL DEFAULT 'available' CHECK (availability IN ('available', 'unavailable')),
+    is_popular BOOLEAN NOT NULL DEFAULT false,
+    preparation_time INTEGER,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Create index for faster queries
+CREATE INDEX IF NOT EXISTS idx_menu_items_stall_id ON public.menu_items(stall_id);
+CREATE INDEX IF NOT EXISTS idx_menu_items_availability ON public.menu_items(availability);
+CREATE INDEX IF NOT EXISTS idx_menu_items_category ON public.menu_items(category);
+
+-- Enable Row Level Security (RLS)
+ALTER TABLE public.menu_items ENABLE ROW LEVEL SECURITY;
+
+-- Allow anyone to read menu items (public access for customers)
+CREATE POLICY "Allow public read access" ON public.menu_items
+    FOR SELECT
+    TO public
+    USING (true);
+
+-- Allow authenticated users to insert menu items
+CREATE POLICY "Allow authenticated insert" ON public.menu_items
+    FOR INSERT
+    TO public
+    WITH CHECK (true);
+
+-- Allow authenticated users to update menu items
+CREATE POLICY "Allow authenticated update" ON public.menu_items
+    FOR UPDATE
+    TO public
+    USING (true);
+
+-- Allow authenticated users to delete menu items
+CREATE POLICY "Allow authenticated delete" ON public.menu_items
+    FOR DELETE
+    TO public
+    USING (true);
+
+-- Create updated_at trigger
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER update_menu_items_updated_at 
+    BEFORE UPDATE ON public.menu_items
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();`;
+
+        // Initialize Supabase
+        function initializeSupabase() {
+            try {
+                const SUPABASE_URL = 'https://mtmkghuhhrerlcubhzot.supabase.co';
+                const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10bWtnaHVoaHJlcmxjdWJoem90Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1Mzc5NzIsImV4cCI6MjA3NzExMzk3Mn0.kA-NUWidhSRNPotmVe3KIclk8LpizR26DzxIBn5C1rA';
+                
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                console.log('✅ Supabase connected');
+                return true;
+            } catch (error) {
+                console.error('❌ Failed to initialize Supabase:', error);
+                return false;
+            }
+        }
+
+        async function createMenuItemsTable() {
+            const resultDiv = document.getElementById('result');
+            const btn = document.getElementById('createTableBtn');
+            
+            // Disable button
+            btn.disabled = true;
+            btn.innerHTML = '<div class="loading"></div><span>Creating table...</span>';
+            
+            resultDiv.innerHTML = '<div class="info">🔄 Executing SQL script... This may take a few seconds.</div>';
+
+            try {
+                if (!supabase) {
+                    if (!initializeSupabase()) {
+                        throw new Error('Failed to connect to Supabase');
+                    }
+                }
+
+                // Execute the SQL script
+                const { data, error } = await supabase.rpc('exec_sql', { 
+                    query: SQL_SCRIPT 
+                });
+
+                if (error) {
+                    // If RPC doesn't exist, show manual instructions
+                    if (error.message.includes('function') || error.code === '42883') {
+                        resultDiv.innerHTML = `
+                            <div class="warning">
+                                <h3>⚠️ Automatic Setup Not Available</h3>
+                                <p><strong>The automatic setup requires special permissions.</strong></p>
+                                <p>Please follow these manual steps:</p>
+                                <ol>
+                                    <li>Go to <a href="https://supabase.com/dashboard" target="_blank">Supabase Dashboard</a></li>
+                                    <li>Select your project: <code>mtmkghuhhrerlcubhzot</code></li>
+                                    <li>Click <strong>"SQL Editor"</strong> in the left sidebar</li>
+                                    <li>Click <strong>"New Query"</strong></li>
+                                    <li>Copy the SQL script shown below</li>
+                                    <li>Paste it into the SQL Editor</li>
+                                    <li>Click <strong>"Run"</strong> (or press Ctrl+Enter)</li>
+                                </ol>
+                                <p>The SQL script is displayed in the "SQL Script Preview" section below.</p>
+                            </div>
+                        `;
+                    } else {
+                        throw error;
+                    }
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h3>✅ Success!</h3>
+                            <p><strong>The menu_items table has been created successfully!</strong></p>
+                            <p>You can now:</p>
+                            <ul>
+                                <li>Go to <code>hawker/menu-management.html</code> to add menu items</li>
+                                <li>Use <code>check-menu-database.html</code> to view all items</li>
+                                <li>Test with <code>test-menu-upload.html</code></li>
+                            </ul>
+                        </div>
+                    `;
+                }
+
+                // Re-enable button
+                btn.disabled = false;
+                btn.innerHTML = '<span class="icon">✓</span><span>Table Created - Click to Recreate</span>';
+
+            } catch (error) {
+                console.error('❌ Error creating table:', error);
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Error Creating Table</h3>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                        <p><strong>Please use the manual method:</strong></p>
+                        <ol>
+                            <li>Go to <a href="https://supabase.com/dashboard" target="_blank">Supabase Dashboard</a></li>
+                            <li>Open the <strong>SQL Editor</strong></li>
+                            <li>Copy and paste the SQL script from below</li>
+                            <li>Run the script</li>
+                        </ol>
+                    </div>
+                `;
+                
+                // Re-enable button
+                btn.disabled = false;
+                btn.innerHTML = '<span class="icon">🔄</span><span>Try Again</span>';
+            }
+        }
+
+        // Display SQL script
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('sqlPreview').textContent = SQL_SCRIPT;
+            initializeSupabase();
+        });
+    </script>
+</body>
+</html>

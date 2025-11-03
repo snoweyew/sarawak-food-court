@@ -306,7 +306,9 @@
             }
             
             grid.innerHTML = items.map(item => `
-                <div class="menu-item" data-category="${item.category}">
+                <div class="menu-item" data-category="${item.category}" 
+                     onclick='${item.available ? `openAddToCartModal(${JSON.stringify(item).replace(/'/g, "&apos;")})` : ""}' 
+                     style="${item.available ? 'cursor: pointer;' : 'cursor: not-allowed;'}">
                     <div class="item-image" style="background-image: url('${item.image}')">
                         ${item.isPopular ? '<span class="popular-badge">Popular</span>' : ''}
                         ${!item.available ? '<div class="sold-out-badge">Sold Out</div>' : ''}
@@ -316,7 +318,7 @@
                         <p class="item-description">${item.description}</p>
                         <div class="item-footer">
                             <span class="price">RM ${item.price.toFixed(2)}</span>
-                            <button class="btn-add" onclick='openAddToCartModal(${JSON.stringify(item)})' 
+                            <button class="btn-add" onclick='event.stopPropagation(); openAddToCartModal(${JSON.stringify(item)})' 
                                     ${!item.available ? 'disabled' : ''}>
                                 <i class="fas fa-plus"></i> Add
                             </button>

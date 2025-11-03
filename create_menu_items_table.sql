@@ -9,35 +9,44 @@ CREATE TABLE IF NOT EXISTS public.menu_items (
     price DECIMAL(10,2) NOT NULL,
     category TEXT NOT NULL DEFAULT 'Main',
     image_url TEXT,
-    available BOOLEAN NOT NULL DEFAULT true,
+    availability TEXT NOT NULL DEFAULT 'available' CHECK (availability IN ('available', 'unavailable')),
     is_popular BOOLEAN NOT NULL DEFAULT false,
+    preparation_time INTEGER,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Create index for faster queries
 CREATE INDEX IF NOT EXISTS idx_menu_items_stall_id ON public.menu_items(stall_id);
-CREATE INDEX IF NOT EXISTS idx_menu_items_available ON public.menu_items(available);
+CREATE INDEX IF NOT EXISTS idx_menu_items_availability ON public.menu_items(availability);
+CREATE INDEX IF NOT EXISTS idx_menu_items_category ON public.menu_items(category);
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE public.menu_items ENABLE ROW LEVEL SECURITY;
 
--- Allow anyone to read menu items
+-- Allow anyone to read menu items (public access for customers)
 CREATE POLICY "Allow public read access" ON public.menu_items
     FOR SELECT
     TO public
     USING (true);
 
--- Allow hawkers to manage their own menu items
-CREATE POLICY "Allow hawkers to manage their menu items" ON public.menu_items
-    FOR ALL
+-- Allow authenticated users to insert menu items
+CREATE POLICY "Allow authenticated insert" ON public.menu_items
+    FOR INSERT
     TO public
-    USING (
-        stall_id IN (
-            SELECT id FROM public.hawker_stalls 
-            WHERE hawker_id = auth.uid()
-        )
-    );
+    WITH CHECK (true);
+
+-- Allow authenticated users to update menu items
+CREATE POLICY "Allow authenticated update" ON public.menu_items
+    FOR UPDATE
+    TO public
+    USING (true);
+
+-- Allow authenticated users to delete menu items
+CREATE POLICY "Allow authenticated delete" ON public.menu_items
+    FOR DELETE
+    TO public
+    USING (true);
 
 -- Create updated_at trigger
 CREATE OR REPLACE FUNCTION update_updated_at_column()
