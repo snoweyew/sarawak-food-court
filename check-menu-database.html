@@ -217,7 +217,7 @@
                 const { count: activeMenuCount } = await supabase
                     .from('menu_items')
                     .select('*', { count: 'exact', head: true })
-                    .eq('availability', 'available');
+                    .eq('available', true);
 
                 // Display summary
                 document.getElementById('summary').innerHTML = `
@@ -361,7 +361,7 @@
                                     </p>
                                     <p style="margin: 0.5rem 0;">
                                         Category: <strong>${item.category}</strong> | 
-                                        <span class="status ${item.availability}">${item.availability}</span>
+                                        <span class="status ${item.available ? 'available' : 'unavailable'}">${item.available ? 'Available' : 'Unavailable'}</span>
                                     </p>
                                     ${item.preparation_time ? `<p style="margin: 0.25rem 0; font-size: 0.85rem;">⏱️ Prep time: ${item.preparation_time} mins</p>` : ''}
                                 </div>
@@ -410,7 +410,7 @@
                                 <td>${hawkerName}</td>
                                 <td>${item.category}</td>
                                 <td class="price">RM ${parseFloat(item.price).toFixed(2)}</td>
-                                <td><span class="status ${item.availability}">${item.availability}</span></td>
+                                <td><span class="status ${item.available ? 'available' : 'unavailable'}">${item.available ? 'Available' : 'Unavailable'}</span></td>
                                 <td>${createdDate}</td>
                             </tr>
                         `;
