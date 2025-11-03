@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Menu Upload to Supabase</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover { background: #45a049; }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success { color: #4CAF50; font-weight: bold; }
+        .error { color: #f44336; font-weight: bold; }
+        input, select {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 200px;
+        }
+        .form-group {
+            margin: 10px 0;
+        }
+        label {
+            display: inline-block;
+            width: 150px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test Menu Upload to Supabase</h1>
+        <p>This tool helps test if menu items can be saved to Supabase database</p>
+
+        <div class="test-section">
+            <h2>1. Check Menu Items Table Structure</h2>
+            <button onclick="checkTableStructure()">Check Table</button>
+            <pre id="tableStructure"></pre>
+        </div>
+
+        <div class="test-section">
+            <h2>2. List All Menu Items in Database</h2>
+            <button onclick="listAllMenuItems()">Load All Menu Items</button>
+            <pre id="menuList"></pre>
+        </div>
+
+        <div class="test-section">
+            <h2>3. Test Insert New Menu Item</h2>
+            <div class="form-group">
+                <label>Stall ID:</label>
+                <input type="number" id="testStallId" placeholder="Enter Stall ID" value="1">
+            </div>
+            <div class="form-group">
+                <label>Item Name:</label>
+                <input type="text" id="testItemName" placeholder="Item Name" value="Test Nasi Lemak">
+            </div>
+            <div class="form-group">
+                <label>Description:</label>
+                <input type="text" id="testDescription" placeholder="Description" value="Delicious nasi lemak with sambal">
+            </div>
+            <div class="form-group">
+                <label>Price (RM):</label>
+                <input type="number" id="testPrice" placeholder="Price" value="5.50" step="0.01">
+            </div>
+            <div class="form-group">
+                <label>Category:</label>
+                <select id="testCategory">
+                    <option value="Main">Main</option>
+                    <option value="Side">Side</option>
+                    <option value="Drink">Drink</option>
+                    <option value="Dessert">Dessert</option>
+                </select>
+            </div>
+            <button onclick="testInsertMenuItem()">Insert Test Item</button>
+            <pre id="insertResult"></pre>
+        </div>
+
+        <div class="test-section">
+            <h2>4. Check Hawker Stalls</h2>
+            <button onclick="listStalls()">List All Stalls</button>
+            <pre id="stallsList"></pre>
+        </div>
+
+        <div class="test-section">
+            <h2>5. Delete Test Items</h2>
+            <p>Delete all menu items that start with "Test"</p>
+            <button onclick="deleteTestItems()">Delete Test Items</button>
+            <pre id="deleteResult"></pre>
+        </div>
+    </div>
+
+    <script>
+        let supabase;
+
+        // Initialize Supabase
+        async function initSupabase() {
+            const SUPABASE_URL = 'https://mtmkghuhhrerlcubhzot.supabase.co';
+            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10bWtnaHVoaHJlcmxjdWJoem90Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1Mzc5NzIsImV4cCI6MjA3NzExMzk3Mn0.kA-NUWidhSRNPotmVe3KIclk8LpizR26DzxIBn5C1rA';
+            
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            console.log('✅ Supabase initialized');
+        }
+
+        async function checkTableStructure() {
+            const output = document.getElementById('tableStructure');
+            output.innerHTML = 'Checking table structure...';
+            
+            try {
+                // Try to select from menu_items table
+                const { data, error, count } = await supabase
+                    .from('menu_items')
+                    .select('*', { count: 'exact', head: false })
+                    .limit(1);
+                
+                if (error) {
+                    output.innerHTML = `<span class="error">❌ Error: ${error.message}</span>\n\n` +
+                        `Details: ${JSON.stringify(error, null, 2)}`;
+                    return;
+                }
+                
+                output.innerHTML = `<span class="success">✅ Table exists and is accessible!</span>\n\n` +
+                    `Total rows in table: ${count || 0}\n\n` +
+                    `Sample row structure:\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                output.innerHTML = `<span class="error">❌ Error: ${error.message}</span>`;
+            }
+        }
+
+        async function listAllMenuItems() {
+            const output = document.getElementById('menuList');
+            output.innerHTML = 'Loading menu items...';
+            
+            try {
+                const { data, error } = await supabase
+                    .from('menu_items')
+                    .select(`
+                        *,
+                        hawker_stalls (
+                            stall_name,
+                            hawker_id,
+                            users (
+                                full_name
+                            )
+                        )
+                    `)
+                    .order('created_at', { ascending: false });
+                
+                if (error) throw error;
+                
+                output.innerHTML = `<span class="success">✅ Found ${data.length} menu item(s)</span>\n\n` + 
+                    JSON.stringify(data, null, 2);
+            } catch (error) {
+                output.innerHTML = `<span class="error">❌ Error: ${error.message}</span>`;
+            }
+        }
+
+        async function testInsertMenuItem() {
+            const output = document.getElementById('insertResult');
+            output.innerHTML = 'Inserting test item...';
+            
+            try {
+                const itemData = {
+                    stall_id: parseInt(document.getElementById('testStallId').value),
+                    name: document.getElementById('testItemName').value,
+                    description: document.getElementById('testDescription').value,
+                    price: parseFloat(document.getElementById('testPrice').value),
+                    category: document.getElementById('testCategory').value,
+                    image_url: 'https://via.placeholder.com/300?text=Test+Item',
+                    availability: 'available',
+                    is_popular: false
+                };
+                
+                console.log('Inserting:', itemData);
+                
+                const { data, error } = await supabase
+                    .from('menu_items')
+                    .insert([itemData])
+                    .select()
+                    .single();
+                
+                if (error) throw error;
+                
+                output.innerHTML = `<span class="success">✅ Item inserted successfully!</span>\n\n` +
+                    `Inserted item:\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                output.innerHTML = `<span class="error">❌ Error: ${error.message}</span>\n\n` +
+                    `Details: ${JSON.stringify(error, null, 2)}`;
+            }
+        }
+
+        async function listStalls() {
+            const output = document.getElementById('stallsList');
+            output.innerHTML = 'Loading stalls...';
+            
+            try {
+                const { data, error } = await supabase
+                    .from('hawker_stalls')
+                    .select(`
+                        *,
+                        users (
+                            full_name,
+                            phone,
+                            email
+                        ),
+                        food_courts (
+                            name
+                        )
+                    `)
+                    .order('created_at', { ascending: false });
+                
+                if (error) throw error;
+                
+                output.innerHTML = `<span class="success">✅ Found ${data.length} stall(s)</span>\n\n` + 
+                    JSON.stringify(data, null, 2);
+            } catch (error) {
+                output.innerHTML = `<span class="error">❌ Error: ${error.message}</span>`;
+            }
+        }
+
+        async function deleteTestItems() {
+            const output = document.getElementById('deleteResult');
+            output.innerHTML = 'Deleting test items...';
+            
+            try {
+                const { data, error } = await supabase
+                    .from('menu_items')
+                    .delete()
+                    .like('name', 'Test%')
+                    .select();
+                
+                if (error) throw error;
+                
+                output.innerHTML = `<span class="success">✅ Deleted ${data.length} test item(s)</span>\n\n` + 
+                    JSON.stringify(data, null, 2);
+            } catch (error) {
+                output.innerHTML = `<span class="error">❌ Error: ${error.message}</span>`;
+            }
+        }
+
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', initSupabase);
+    </script>
+</body>
+</html>

@@ -226,22 +226,60 @@
                 console.log('My Stall ID from session:', myStallId);
                 console.log('My Stall Name:', session.stallName);
                 
-                // Check localStorage for menu data
-                const localMenus = localStorage.getItem('menus');
-                let allMenus = [];
+                // Load menu items from Supabase
+                console.log('Loading menu items from Supabase for stall:', myStallId);
+                const { data: supabaseMenus, error } = await supabase
+                    .from('menu_items')
+                    .select('*')
+                    .eq('stall_id', myStallId)
+                    .order('created_at', { ascending: false });
                 
-                if (localMenus) {
-                    console.log('Loading menus from localStorage');
-                    allMenus = JSON.parse(localMenus);
+                if (error) {
+                    console.error('❌ Error loading from Supabase:', error);
+                    // Fall back to localStorage
+                    const localMenus = localStorage.getItem('menus');
+                    let allMenus = [];
+                    
+                    if (localMenus) {
+                        console.log('Falling back to localStorage');
+                        allMenus = JSON.parse(localMenus);
+                    } else {
+                        console.log('No menus in localStorage either');
+                        allMenus = [];
+                    }
+                    
+                    menuItems = allMenus.filter(item => item.stallId === myStallId);
+                    console.log('Loaded from localStorage. My menu items:', menuItems.length);
                 } else {
-                    console.log('No menus in localStorage, starting with empty array');
-                    allMenus = [];
+                    console.log('✅ Loaded from Supabase:', supabaseMenus?.length || 0, 'items');
+                    
+                    // Convert Supabase format to local format
+                    menuItems = (supabaseMenus || []).map(item => ({
+                        id: item.id,
+                        stallId: item.stall_id,
+                        name: item.name,
+                        price: parseFloat(item.price),
+                        description: item.description,
+                        category: item.category,
+                        image: item.image_url || 'https://via.placeholder.com/300?text=No+Image',
+                        available: item.availability === 'available',
+                        isPopular: item.is_popular || false
+                    }));
+                    
+                    // Also update localStorage for offline access
+                    const localMenus = localStorage.getItem('menus');
+                    let allMenus = localMenus ? JSON.parse(localMenus) : [];
+                    
+                    // Remove old items for this stall from localStorage
+                    allMenus = allMenus.filter(item => item.stallId !== myStallId);
+                    
+                    // Add the current items
+                    allMenus.push(...menuItems);
+                    
                     localStorage.setItem('menus', JSON.stringify(allMenus));
+                    console.log('Synced to localStorage. Total menus:', allMenus.length);
                 }
                 
-                console.log('Total menus loaded:', allMenus.length);
-                menuItems = allMenus.filter(item => item.stallId === myStallId);
-                console.log('My menu items:', menuItems.length);
                 displayMenu();
             } catch (error) {
                 console.error('Error loading menu:', error);
@@ -346,7 +384,7 @@
             editingItemId = null;
         }
         
-        function saveItem(event) {
+        async function saveItem(event) {
             event.preventDefault();
             
             // Use the stored stall ID
@@ -369,58 +407,140 @@
             
             console.log('Saving item:', itemData);
             
-            // Get all menus from localStorage
-            let allMenus = JSON.parse(localStorage.getItem('menus') || '[]');
-            
-            if (editingItemId) {
-                // Update existing item
-                const localIndex = menuItems.findIndex(i => i.id === editingItemId);
-                if (localIndex !== -1) {
-                    menuItems[localIndex] = itemData;
+            try {
+                // Prepare data for Supabase
+                const supabaseData = {
+                    stall_id: myStallId,
+                    name: itemData.name,
+                    description: itemData.description,
+                    price: itemData.price,
+                    category: itemData.category,
+                    image_url: itemData.image,
+                    availability: itemData.available ? 'available' : 'unavailable',
+                    is_popular: itemData.isPopular
+                };
+                
+                if (editingItemId) {
+                    // Update existing item in Supabase
+                    console.log('Updating item in Supabase with ID:', editingItemId);
+                    const { data, error } = await supabase
+                        .from('menu_items')
+                        .update(supabaseData)
+                        .eq('id', editingItemId)
+                        .select()
+                        .single();
+                    
+                    if (error) throw error;
+                    
+                    console.log('✅ Item updated in Supabase:', data);
+                    
+                    // Update in local array
+                    const localIndex = menuItems.findIndex(i => i.id === editingItemId);
+                    if (localIndex !== -1) {
+                        menuItems[localIndex] = itemData;
+                    }
+                    
+                    showToast('Item updated successfully!');
+                } else {
+                    // Insert new item into Supabase
+                    console.log('Inserting new item into Supabase');
+                    const { data, error } = await supabase
+                        .from('menu_items')
+                        .insert([supabaseData])
+                        .select()
+                        .single();
+                    
+                    if (error) throw error;
+                    
+                    console.log('✅ Item inserted into Supabase:', data);
+                    
+                    // Update the itemData with the actual ID from Supabase
+                    itemData.id = data.id;
+                    
+                    // Add to local array
+                    menuItems.push(itemData);
+                    
+                    showToast('Item added successfully!');
                 }
                 
-                // Update in all menus array
-                const globalIndex = allMenus.findIndex(i => i.id === editingItemId);
-                if (globalIndex !== -1) {
-                    allMenus[globalIndex] = itemData;
+                // Also save to localStorage for offline access
+                let allMenus = JSON.parse(localStorage.getItem('menus') || '[]');
+                
+                if (editingItemId) {
+                    const globalIndex = allMenus.findIndex(i => i.id === editingItemId);
+                    if (globalIndex !== -1) {
+                        allMenus[globalIndex] = itemData;
+                    }
+                } else {
+                    allMenus.push(itemData);
                 }
                 
-                showToast('Item updated successfully!');
-            } else {
-                // Add new item
-                menuItems.push(itemData);
-                allMenus.push(itemData);
-                showToast('Item added successfully!');
+                localStorage.setItem('menus', JSON.stringify(allMenus));
+                console.log('Saved to localStorage. Total menus:', allMenus.length);
+                
+                closeItemModal();
+                displayMenu();
+                
+            } catch (error) {
+                console.error('❌ Error saving item to Supabase:', error);
+                showToast('Error saving item: ' + error.message, 'error');
             }
-            
-            // Save to localStorage
-            localStorage.setItem('menus', JSON.stringify(allMenus));
-            console.log('Saved to localStorage. Total menus:', allMenus.length);
-            
-            closeItemModal();
-            displayMenu();
         }
         
-        function toggleAvailability(itemId) {
+        async function toggleAvailability(itemId) {
             const item = menuItems.find(i => i.id === itemId);
-            if (item) {
-                item.available = !item.available;
+            if (!item) return;
+            
+            try {
+                const newAvailability = !item.available;
+                
+                // Update in Supabase
+                console.log('Updating availability in Supabase for item:', itemId);
+                const { error } = await supabase
+                    .from('menu_items')
+                    .update({ availability: newAvailability ? 'available' : 'unavailable' })
+                    .eq('id', itemId);
+                
+                if (error) throw error;
+                
+                console.log('✅ Availability updated in Supabase');
+                
+                // Update locally
+                item.available = newAvailability;
                 
                 // Update in localStorage
                 const allMenus = JSON.parse(localStorage.getItem('menus') || '[]');
                 const globalIndex = allMenus.findIndex(i => i.id === itemId);
                 if (globalIndex !== -1) {
-                    allMenus[globalIndex].available = item.available;
+                    allMenus[globalIndex].available = newAvailability;
                     localStorage.setItem('menus', JSON.stringify(allMenus));
                 }
                 
                 displayMenu();
-                showToast(`Item marked as ${item.available ? 'available' : 'unavailable'}`);
+                showToast(`Item marked as ${newAvailability ? 'available' : 'unavailable'}`);
+            } catch (error) {
+                console.error('❌ Error updating availability:', error);
+                showToast('Error updating availability: ' + error.message, 'error');
             }
         }
         
-        function deleteItem(itemId) {
-            if (confirm('Are you sure you want to delete this item?')) {
+        async function deleteItem(itemId) {
+            if (!confirm('Are you sure you want to delete this item?')) {
+                return;
+            }
+            
+            try {
+                // Delete from Supabase
+                console.log('Deleting item from Supabase:', itemId);
+                const { error } = await supabase
+                    .from('menu_items')
+                    .delete()
+                    .eq('id', itemId);
+                
+                if (error) throw error;
+                
+                console.log('✅ Item deleted from Supabase');
+                
                 // Remove from local array
                 menuItems = menuItems.filter(i => i.id !== itemId);
                 
@@ -431,6 +551,9 @@
                 
                 displayMenu();
                 showToast('Item deleted successfully!');
+            } catch (error) {
+                console.error('❌ Error deleting item:', error);
+                showToast('Error deleting item: ' + error.message, 'error');
             }
         }
         

@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Check Menu Database</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+            background: #f5f7fa;
+        }
+        h1 {
+            color: #F57C00;
+            margin-bottom: 2rem;
+        }
+        .section {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #2C3E50;
+            border-bottom: 2px solid #F57C00;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        th {
+            background: #f5f7fa;
+            font-weight: 600;
+            color: #2C3E50;
+        }
+        tr:hover {
+            background: #f9f9f9;
+        }
+        .status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+        .status.active {
+            background: #e8f5e9;
+            color: #388E3C;
+        }
+        .status.inactive {
+            background: #ffebee;
+            color: #d32f2f;
+        }
+        .status.available {
+            background: #e8f5e9;
+            color: #388E3C;
+        }
+        .status.unavailable {
+            background: #ffebee;
+            color: #d32f2f;
+        }
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #7F8C8D;
+        }
+        .error {
+            background: #ffebee;
+            color: #d32f2f;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+        .success {
+            background: #e8f5e9;
+            color: #388E3C;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+        .warning {
+            background: #fff3e0;
+            color: #f57c00;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+        .count {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #F57C00;
+            margin: 0.5rem 0;
+        }
+        button {
+            background: linear-gradient(135deg, #F57C00, #F57C00);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 1rem;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(245, 124, 0, 0.3);
+        }
+        .price {
+            color: #388E3C;
+            font-weight: 600;
+        }
+        .menu-item-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 0.5rem 0;
+        }
+        .menu-item-card h4 {
+            margin: 0 0 0.5rem 0;
+            color: #2C3E50;
+        }
+        .stall-name {
+            color: #F57C00;
+            font-weight: 600;
+        }
+        img {
+            max-width: 100px;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🍽️ Menu Database Check - Hawker Registered Items</h1>
+    
+    <div class="section">
+        <h2>📊 Summary</h2>
+        <div id="summary">
+            <div class="loading">Loading database information...</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🏪 Hawkers and Their Stalls</h2>
+        <div id="hawkersStalls">
+            <div class="loading">Loading hawkers and stalls...</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🍜 Menu Items by Hawker</h2>
+        <div id="menuItems">
+            <div class="loading">Loading menu items...</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📋 All Menu Items (Detailed)</h2>
+        <div id="allMenuItems">
+            <div class="loading">Loading all menu items...</div>
+        </div>
+    </div>
+
+    <button onclick="refreshData()">🔄 Refresh Data</button>
+
+    <script>
+        let supabase;
+
+        // Initialize Supabase
+        function initializeSupabase() {
+            try {
+                const SUPABASE_URL = 'https://mtmkghuhhrerlcubhzot.supabase.co';
+                const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10bWtnaHVoaHJlcmxjdWJoem90Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1Mzc5NzIsImV4cCI6MjA3NzExMzk3Mn0.kA-NUWidhSRNPotmVe3KIclk8LpizR26DzxIBn5C1rA';
+                
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                console.log('✅ Supabase connected successfully!');
+                return true;
+            } catch (error) {
+                console.error('❌ Failed to initialize Supabase:', error);
+                return false;
+            }
+        }
+
+        // Load all data
+        async function loadData() {
+            if (!initializeSupabase()) {
+                document.getElementById('summary').innerHTML = '<div class="error">Failed to connect to database</div>';
+                return;
+            }
+
+            try {
+                // Get counts
+                const { count: hawkerCount } = await supabase
+                    .from('users')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('role', 'hawker');
+
+                const { count: stallCount } = await supabase
+                    .from('hawker_stalls')
+                    .select('*', { count: 'exact', head: true });
+
+                const { count: menuCount } = await supabase
+                    .from('menu_items')
+                    .select('*', { count: 'exact', head: true });
+
+                const { count: activeMenuCount } = await supabase
+                    .from('menu_items')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('availability', 'available');
+
+                // Display summary
+                document.getElementById('summary').innerHTML = `
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                        <div>
+                            <div style="color: #7F8C8D; font-size: 0.9rem;">Registered Hawkers</div>
+                            <div class="count">${hawkerCount || 0}</div>
+                        </div>
+                        <div>
+                            <div style="color: #7F8C8D; font-size: 0.9rem;">Active Stalls</div>
+                            <div class="count">${stallCount || 0}</div>
+                        </div>
+                        <div>
+                            <div style="color: #7F8C8D; font-size: 0.9rem;">Total Menu Items</div>
+                            <div class="count">${menuCount || 0}</div>
+                        </div>
+                        <div>
+                            <div style="color: #7F8C8D; font-size: 0.9rem;">Available Items</div>
+                            <div class="count">${activeMenuCount || 0}</div>
+                        </div>
+                    </div>
+                `;
+
+                // Get hawkers with their stalls
+                const { data: hawkers, error: hawkersError } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('role', 'hawker')
+                    .order('created_at', { ascending: false });
+
+                if (hawkersError) throw hawkersError;
+
+                // Get all stalls
+                const { data: stalls, error: stallsError } = await supabase
+                    .from('hawker_stalls')
+                    .select(`
+                        *,
+                        food_courts (
+                            name,
+                            address
+                        )
+                    `)
+                    .order('created_at', { ascending: false });
+
+                if (stallsError) throw stallsError;
+
+                // Display hawkers and stalls
+                if (hawkers && hawkers.length > 0) {
+                    let hawkersHTML = '';
+                    
+                    for (const hawker of hawkers) {
+                        const hawkerStalls = stalls.filter(s => s.hawker_id === hawker.id);
+                        
+                        hawkersHTML += `
+                            <div style="border: 2px solid #e0e0e0; border-radius: 8px; padding: 1rem; margin: 1rem 0; background: #fafafa;">
+                                <h3 style="margin: 0 0 0.5rem 0; color: #F57C00;">👤 ${hawker.full_name}</h3>
+                                <p style="margin: 0.25rem 0; color: #7F8C8D;">
+                                    📧 ${hawker.email} | 📞 ${hawker.phone || 'N/A'}
+                                </p>
+                                <p style="margin: 0.25rem 0;">
+                                    Status: <span class="status ${hawker.status}">${hawker.status}</span>
+                                </p>
+                        `;
+                        
+                        if (hawkerStalls.length > 0) {
+                            hawkersHTML += '<div style="margin-top: 1rem;"><strong>🏪 Stalls:</strong></div>';
+                            hawkerStalls.forEach(stall => {
+                                hawkersHTML += `
+                                    <div style="margin-left: 1rem; margin-top: 0.5rem; padding: 0.75rem; background: white; border-radius: 8px;">
+                                        <strong>${stall.stall_name}</strong> 
+                                        <span class="status ${stall.status}">${stall.status}</span><br>
+                                        <small>📍 ${stall.food_courts?.name || 'N/A'} | Stall #${stall.stall_number || 'N/A'}</small><br>
+                                        <small>🍽️ Cuisine: ${stall.cuisine_type || 'N/A'}</small>
+                                    </div>
+                                `;
+                            });
+                        } else {
+                            hawkersHTML += '<div style="margin-top: 1rem;"><em style="color: #f57c00;">⚠️ No stalls registered yet</em></div>';
+                        }
+                        
+                        hawkersHTML += `</div>`;
+                    }
+                    
+                    document.getElementById('hawkersStalls').innerHTML = hawkersHTML || '<div class="warning">No hawkers found</div>';
+                } else {
+                    document.getElementById('hawkersStalls').innerHTML = '<div class="error">❌ No hawkers found in the database</div>';
+                }
+
+                // Get menu items grouped by stall
+                const { data: menuItems, error: menuError } = await supabase
+                    .from('menu_items')
+                    .select(`
+                        *,
+                        hawker_stalls (
+                            stall_name,
+                            hawker_id,
+                            users (
+                                full_name
+                            )
+                        )
+                    `)
+                    .order('created_at', { ascending: false });
+
+                if (menuError) throw menuError;
+
+                // Display menu items by hawker
+                if (menuItems && menuItems.length > 0) {
+                    // Group by hawker
+                    const menuByHawker = {};
+                    menuItems.forEach(item => {
+                        const hawkerName = item.hawker_stalls?.users?.full_name || 'Unknown Hawker';
+                        if (!menuByHawker[hawkerName]) {
+                            menuByHawker[hawkerName] = {
+                                stall: item.hawker_stalls?.stall_name || 'Unknown Stall',
+                                items: []
+                            };
+                        }
+                        menuByHawker[hawkerName].items.push(item);
+                    });
+
+                    let menuHTML = `<div class="success">✅ Found ${menuItems.length} menu item(s) across ${Object.keys(menuByHawker).length} hawker(s)</div>`;
+                    
+                    Object.entries(menuByHawker).forEach(([hawkerName, data]) => {
+                        menuHTML += `
+                            <div style="border: 2px solid #F57C00; border-radius: 8px; padding: 1rem; margin: 1rem 0; background: #fff9f5;">
+                                <h3 style="margin: 0 0 0.5rem 0; color: #F57C00;">🏪 ${data.stall}</h3>
+                                <p style="margin: 0.25rem 0; color: #7F8C8D;">Hawker: ${hawkerName}</p>
+                                <p style="margin: 0.5rem 0;"><strong>${data.items.length} menu item(s)</strong></p>
+                                
+                                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; margin-top: 1rem;">
+                        `;
+                        
+                        data.items.forEach(item => {
+                            menuHTML += `
+                                <div class="menu-item-card">
+                                    ${item.image_url ? `<img src="${item.image_url}" alt="${item.name}" style="width: 100%; max-width: 200px; height: auto;"><br>` : ''}
+                                    <h4>${item.name}</h4>
+                                    <p style="margin: 0.5rem 0; color: #7F8C8D; font-size: 0.9rem;">${item.description || 'No description'}</p>
+                                    <p style="margin: 0.5rem 0;">
+                                        <span class="price">RM ${parseFloat(item.price).toFixed(2)}</span>
+                                    </p>
+                                    <p style="margin: 0.5rem 0;">
+                                        Category: <strong>${item.category}</strong> | 
+                                        <span class="status ${item.availability}">${item.availability}</span>
+                                    </p>
+                                    ${item.preparation_time ? `<p style="margin: 0.25rem 0; font-size: 0.85rem;">⏱️ Prep time: ${item.preparation_time} mins</p>` : ''}
+                                </div>
+                            `;
+                        });
+                        
+                        menuHTML += `
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    document.getElementById('menuItems').innerHTML = menuHTML;
+                } else {
+                    document.getElementById('menuItems').innerHTML = '<div class="warning">⚠️ No menu items found in the database yet</div>';
+                }
+
+                // Display all menu items in table format
+                if (menuItems && menuItems.length > 0) {
+                    let tableHTML = `
+                        <div class="success">✅ Detailed view of all ${menuItems.length} menu items</div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Item Name</th>
+                                    <th>Stall</th>
+                                    <th>Hawker</th>
+                                    <th>Category</th>
+                                    <th>Price</th>
+                                    <th>Availability</th>
+                                    <th>Added On</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+                    
+                    menuItems.forEach(item => {
+                        const createdDate = new Date(item.created_at).toLocaleDateString();
+                        const stallName = item.hawker_stalls?.stall_name || 'N/A';
+                        const hawkerName = item.hawker_stalls?.users?.full_name || 'N/A';
+                        
+                        tableHTML += `
+                            <tr>
+                                <td><strong>${item.name}</strong></td>
+                                <td class="stall-name">${stallName}</td>
+                                <td>${hawkerName}</td>
+                                <td>${item.category}</td>
+                                <td class="price">RM ${parseFloat(item.price).toFixed(2)}</td>
+                                <td><span class="status ${item.availability}">${item.availability}</span></td>
+                                <td>${createdDate}</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    tableHTML += `
+                            </tbody>
+                        </table>
+                    `;
+                    document.getElementById('allMenuItems').innerHTML = tableHTML;
+                } else {
+                    document.getElementById('allMenuItems').innerHTML = '<div class="warning">⚠️ No menu items to display</div>';
+                }
+
+            } catch (error) {
+                console.error('Error loading data:', error);
+                const errorMsg = `<div class="error">Error: ${error.message}</div>`;
+                document.getElementById('summary').innerHTML = errorMsg;
+                document.getElementById('hawkersStalls').innerHTML = errorMsg;
+                document.getElementById('menuItems').innerHTML = errorMsg;
+                document.getElementById('allMenuItems').innerHTML = errorMsg;
+            }
+        }
+
+        function refreshData() {
+            document.getElementById('summary').innerHTML = '<div class="loading">Loading database information...</div>';
+            document.getElementById('hawkersStalls').innerHTML = '<div class="loading">Loading hawkers and stalls...</div>';
+            document.getElementById('menuItems').innerHTML = '<div class="loading">Loading menu items...</div>';
+            document.getElementById('allMenuItems').innerHTML = '<div class="loading">Loading all menu items...</div>';
+            loadData();
+        }
+
+        // Load data on page load
+        window.addEventListener('DOMContentLoaded', loadData);
+    </script>
+</body>
+</html>
