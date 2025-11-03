@@ -155,6 +155,20 @@
 
                 if (error) throw error;
 
+                // Get menu item counts for each stall
+                const { data: menuCounts, error: menuError } = await supabase
+                    .from('menu_items')
+                    .select('stall_id')
+                    .eq('available', true);
+
+                // Count items per stall
+                const itemCountMap = {};
+                if (menuCounts && !menuError) {
+                    menuCounts.forEach(item => {
+                        itemCountMap[item.stall_id] = (itemCountMap[item.stall_id] || 0) + 1;
+                    });
+                }
+
                 // Transform to match expected format
                 const transformedStalls = stalls.map(stall => ({
                     id: stall.id,
@@ -164,7 +178,7 @@
                     image: stall.image_url || 'https://via.placeholder.com/400x300?text=Food+Stall',
                     rating: 4.5, // Default rating for now
                     isOpen: stall.status === 'active',
-                    itemCount: 0 // Will be updated when we add menu items
+                    itemCount: itemCountMap[stall.id] || 0 // Get actual count from database
                 }));
 
                 console.log('✅ Loaded stalls from database:', transformedStalls);
