@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="../css/customer.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
     <!-- Header -->
@@ -142,19 +144,49 @@
                 return acc;
             }, {});
             
-            // Load stall QR codes
+            // Load stall QR codes from Supabase
             try {
-                const response = await fetch('../data/stalls.json');
-                const stalls = await response.json();
+                // Initialize Supabase
+                const SUPABASE_URL = 'https://mtmkghuhhrerlcubhzot.supabase.co';
+                const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10bWtnaHVoaHJlcmxjdWJoem90Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1Mzc5NzIsImV4cCI6MjA3NzExMzk3Mn0.kA-NUWidhSRNPotmVe3KIclk8LpizR26DzxIBn5C1rA';
+                const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
                 
-                Object.keys(paymentsByStall).forEach(stallName => {
-                    const stall = stalls.find(s => s.name === stallName);
-                    if (stall) {
-                        paymentsByStall[stallName].qrCode = stall.qrCode;
-                    }
-                });
+                // Get all unique stall names
+                const stallNames = Object.keys(paymentsByStall);
+                
+                // Load QR codes from database
+                const { data: stalls, error } = await supabase
+                    .from('hawker_stalls')
+                    .select('stall_name, qr_code_url')
+                    .in('stall_name', stallNames);
+                
+                if (error) throw error;
+                
+                // Map QR codes to payment data
+                if (stalls) {
+                    stalls.forEach(stall => {
+                        if (paymentsByStall[stall.stall_name]) {
+                            paymentsByStall[stall.stall_name].qrCode = stall.qr_code_url;
+                        }
+                    });
+                    console.log('✅ QR codes loaded from database:', stalls.length);
+                }
             } catch (error) {
-                console.error('Error loading stall data:', error);
+                console.error('❌ Error loading QR codes from database:', error);
+                // Fallback to JSON file
+                try {
+                    const response = await fetch('../data/stalls.json');
+                    const stalls = await response.json();
+                    
+                    Object.keys(paymentsByStall).forEach(stallName => {
+                        const stall = stalls.find(s => s.name === stallName);
+                        if (stall) {
+                            paymentsByStall[stallName].qrCode = stall.qrCode;
+                        }
+                    });
+                } catch (fallbackError) {
+                    console.error('❌ Fallback error:', fallbackError);
+                }
             }
         }
         
