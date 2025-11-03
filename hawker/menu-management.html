@@ -317,13 +317,13 @@
                         <div class="menu-card-footer">
                             ${item.isPopular ? '<span class="popular-tag"><i class="fas fa-star"></i> Popular</span>' : '<span></span>'}
                             <div class="menu-card-actions">
-                                <button class="action-btn ${item.available ? 'btn-available' : 'btn-unavailable'}" onclick="toggleAvailability(${item.id})" title="${item.available ? 'Available' : 'Unavailable'}">
+                                <button class="action-btn ${item.available ? 'btn-available' : 'btn-unavailable'}" onclick="toggleAvailability('${item.id}')" title="${item.available ? 'Available' : 'Unavailable'}">
                                     <i class="fas fa-${item.available ? 'eye' : 'eye-slash'}"></i>
                                 </button>
-                                <button class="action-btn btn-edit" onclick="editItem(${item.id})" title="Edit">
+                                <button class="action-btn btn-edit" onclick="editItem('${item.id}')" title="Edit">
                                     <i class="fas fa-edit"></i>
                                 </button>
-                                <button class="action-btn btn-delete" onclick="deleteItem(${item.id})" title="Delete">
+                                <button class="action-btn btn-delete" onclick="deleteItem('${item.id}')" title="Delete">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
