@@ -46,6 +46,29 @@
             </div>
             
             <div class="settings-section">
+                <h2><i class="fas fa-image"></i> Stall Profile Image</h2>
+                <div class="qr-upload-section">
+                    <div class="current-qr" id="currentProfileImage">
+                        <img src="https://via.placeholder.com/400x300?text=No+Image" alt="Stall Profile" id="profileImagePreview">
+                    </div>
+                    <div class="qr-upload-controls">
+                        <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                            <button class="btn-primary" onclick="document.getElementById('profileFileInput').click()" style="flex: 1;">
+                                <i class="fas fa-upload"></i> Choose Image File
+                            </button>
+                            <input type="file" id="profileFileInput" accept="image/*" style="display: none;" onchange="handleProfileImageUpload(event)">
+                        </div>
+                        <div style="text-align: center; margin: 0.75rem 0; color: #7F8C8D; font-weight: 600;">OR</div>
+                        <input type="text" id="profileImageUrl" placeholder="Enter image URL" style="margin-bottom: 0.5rem;">
+                        <button class="btn-primary" onclick="updateProfileImage()">
+                            <i class="fas fa-link"></i> Update from URL
+                        </button>
+                        <p class="help-text">This image will be shown to customers on the stall listing page</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="settings-section">
                 <h2><i class="fas fa-qrcode"></i> Payment QR Code</h2>
                 <div class="qr-upload-section">
                     <div class="current-qr" id="currentQR">
@@ -185,6 +208,11 @@
                 document.getElementById('stallDescription').value = hawkerStall.description || '';
                 document.getElementById('isOpen').checked = hawkerStall.is_open || false;
                 
+                if (hawkerStall.image_url) {
+                    document.getElementById('profileImagePreview').src = hawkerStall.image_url;
+                    document.getElementById('profileImageUrl').value = hawkerStall.image_url;
+                }
+                
                 if (hawkerStall.qr_code_url) {
                     document.getElementById('qrPreview').src = hawkerStall.qr_code_url;
                     document.getElementById('qrUrl').value = hawkerStall.qr_code_url;
@@ -261,6 +289,127 @@
                 // Restore button
                 event.target.innerHTML = '<i class="fas fa-save"></i> Save Changes';
                 event.target.disabled = false;
+            }
+        }
+        
+        async function handleProfileImageUpload(event) {
+            const file = event.target.files[0];
+            
+            if (!file) return;
+            
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                showToast('Please select an image file', 'error');
+                return;
+            }
+            
+            // Validate file size (max 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                showToast('Image size must be less than 5MB', 'error');
+                return;
+            }
+            
+            try {
+                showToast('Uploading profile image...', 'warning');
+                
+                // Convert image to base64
+                const reader = new FileReader();
+                reader.onload = async function(e) {
+                    const base64Image = e.target.result;
+                    
+                    try {
+                        const session = JSON.parse(localStorage.getItem('hawkerSession') || sessionStorage.getItem('hawkerSession'));
+                        
+                        if (!session || !session.stallId) {
+                            showToast('Session expired. Please login again.', 'error');
+                            setTimeout(() => window.location.href = 'login.html', 1500);
+                            return;
+                        }
+                        
+                        // Update profile image in database with base64 image
+                        const { data, error } = await supabase
+                            .from('hawker_stalls')
+                            .update({ 
+                                image_url: base64Image,
+                                updated_at: new Date().toISOString()
+                            })
+                            .eq('id', session.stallId)
+                            .select()
+                            .single();
+                        
+                        if (error) throw error;
+                        
+                        // Update preview
+                        document.getElementById('profileImagePreview').src = base64Image;
+                        hawkerStall.image_url = base64Image;
+                        showToast('Profile image uploaded successfully!');
+                        console.log('✅ Profile image uploaded:', data);
+                        
+                    } catch (error) {
+                        console.error('❌ Error uploading profile image:', error);
+                        showToast('Failed to upload profile image: ' + error.message, 'error');
+                    }
+                };
+                
+                reader.onerror = function() {
+                    showToast('Failed to read image file', 'error');
+                };
+                
+                reader.readAsDataURL(file);
+                
+            } catch (error) {
+                console.error('❌ Error processing image:', error);
+                showToast('Failed to process image: ' + error.message, 'error');
+            }
+        }
+
+        async function updateProfileImage() {
+            const imageUrl = document.getElementById('profileImageUrl').value;
+            
+            if (!imageUrl) {
+                showToast('Please enter an image URL', 'error');
+                return;
+            }
+            
+            // Validate URL format
+            try {
+                new URL(imageUrl);
+            } catch (e) {
+                showToast('Please enter a valid URL', 'error');
+                return;
+            }
+            
+            try {
+                const session = JSON.parse(localStorage.getItem('hawkerSession') || sessionStorage.getItem('hawkerSession'));
+                
+                if (!session || !session.stallId) {
+                    showToast('Session expired. Please login again.', 'error');
+                    setTimeout(() => window.location.href = 'login.html', 1500);
+                    return;
+                }
+                
+                // Update profile image in database
+                const { data, error } = await supabase
+                    .from('hawker_stalls')
+                    .update({ 
+                        image_url: imageUrl,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', session.stallId)
+                    .select()
+                    .single();
+                
+                if (error) throw error;
+                
+                // Update preview
+                document.getElementById('profileImagePreview').src = imageUrl;
+                hawkerStall.image_url = imageUrl;
+                showToast('Profile image updated successfully!');
+                console.log('✅ Profile image updated:', data);
+                
+            } catch (error) {
+                console.error('❌ Error updating profile image:', error);
+                showToast('Failed to update profile image: ' + error.message, 'error');
             }
         }
         
