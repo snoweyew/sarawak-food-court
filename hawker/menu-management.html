@@ -262,7 +262,7 @@
                         description: item.description,
                         category: item.category,
                         image: item.image_url || 'https://via.placeholder.com/300?text=No+Image',
-                        available: item.availability === 'available',
+                        available: item.available,
                         isPopular: item.is_popular || false
                     }));
                     
@@ -416,7 +416,7 @@
                     price: itemData.price,
                     category: itemData.category,
                     image_url: itemData.image,
-                    availability: itemData.available ? 'available' : 'unavailable',
+                    available: itemData.available,
                     is_popular: itemData.isPopular
                 };
                 
@@ -498,7 +498,7 @@
                 console.log('Updating availability in Supabase for item:', itemId);
                 const { error } = await supabase
                     .from('menu_items')
-                    .update({ availability: newAvailability ? 'available' : 'unavailable' })
+                    .update({ available: newAvailability })
                     .eq('id', itemId);
                 
                 if (error) throw error;
