@@ -346,7 +346,7 @@ button:disabled {
 }
 
 .input-group input {
-    padding-left: 3rem;
+    padding-right: 3rem; /* Space for toggle button on right */
 }
 
 .form-actions {
