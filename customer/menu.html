@@ -306,9 +306,7 @@
             }
             
             grid.innerHTML = items.map(item => `
-                <div class="menu-item" data-category="${item.category}" 
-                     onclick='${item.available ? `openAddToCartModal(${JSON.stringify(item).replace(/'/g, "&apos;")})` : ""}' 
-                     style="${item.available ? 'cursor: pointer;' : 'cursor: not-allowed;'}">
+                <div class="menu-item" data-category="${item.category}">
                     <div class="item-image" style="background-image: url('${item.image}')">
                         ${item.isPopular ? '<span class="popular-badge">Popular</span>' : ''}
                         ${!item.available ? '<div class="sold-out-badge">Sold Out</div>' : ''}
@@ -318,7 +316,7 @@
                         <p class="item-description">${item.description}</p>
                         <div class="item-footer">
                             <span class="price">RM ${item.price.toFixed(2)}</span>
-                            <button class="btn-add" onclick='event.stopPropagation(); openAddToCartModal(${JSON.stringify(item)})' 
+                            <button class="btn-add" onclick='addDirectlyToCart(${JSON.stringify(item)})' 
                                     ${!item.available ? 'disabled' : ''}>
                                 <i class="fas fa-plus"></i> Add
                             </button>
@@ -344,6 +342,19 @@
                     item.style.display = 'none';
                 }
             });
+        }
+        
+        // Add directly to cart without modal (quantity = 1, no special instructions)
+        function addDirectlyToCart(item) {
+            addToCart({
+                ...item,
+                stallName: currentStall.name,
+                quantity: 1,
+                specialInstructions: ''
+            });
+            
+            updateCartDisplay();
+            showToast('Item added to cart!');
         }
         
         function openAddToCartModal(item) {
