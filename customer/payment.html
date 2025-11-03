@@ -253,7 +253,10 @@
         function markAsPaid() {
             if (!currentStallPayment) return;
             
+            console.log('✅ Marking stall as paid:', currentStallPayment.stallName, '(index:', currentStallPayment.index, ')');
+            
             paidStalls.add(currentStallPayment.index);
+            console.log('📊 Total paid stalls now:', paidStalls.size);
             
             // Update button
             const btn = document.getElementById(`payBtn-${currentStallPayment.index}`);
@@ -270,6 +273,7 @@
             
             // Check if all paid
             if (paidStalls.size === Object.keys(paymentsByStall).length) {
+                console.log('🎉 All stalls paid!');
                 showToast('All payments completed! You can now place your order.');
             }
         }
@@ -286,11 +290,18 @@
         }
         
         function confirmPayment() {
+            console.log('🔵 Confirm Payment clicked');
+            console.log('📊 Paid stalls:', paidStalls.size);
+            console.log('📊 Total stalls:', Object.keys(paymentsByStall).length);
+            console.log('📋 Paid stall indices:', Array.from(paidStalls));
+            
             // Check if all stalls are paid
             if (paidStalls.size !== Object.keys(paymentsByStall).length) {
-                alert('Please complete payment for all stalls before placing your order.');
+                alert(`⚠️ Please complete payment for all stalls!\n\nPaid: ${paidStalls.size}/${Object.keys(paymentsByStall).length} stalls\n\nClick "Pay Now" for each stall, then check the box and click "Mark as Paid"`);
                 return;
             }
+            
+            console.log('✅ All stalls paid! Creating order...');
             
             // Create order
             const cart = JSON.parse(localStorage.getItem('cart') || '[]');
