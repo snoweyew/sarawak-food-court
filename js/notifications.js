@@ -8,18 +8,48 @@ class NotificationManager {
         this.notificationQueue = [];
         this.maxNotifications = 3;
         this.soundEnabled = true;
+        this.serviceWorkerRegistration = null;
         this.init();
     }
 
-    init() {
+    async init() {
         // Create notification container
         this.container = document.createElement('div');
         this.container.className = 'notification-bar';
         document.body.appendChild(this.container);
 
+        // Register Service Worker for persistent notifications
+        await this.registerServiceWorker();
+
         // Request notification permission
         if ('Notification' in window && Notification.permission === 'default') {
-            Notification.requestPermission();
+            await Notification.requestPermission();
+        }
+    }
+
+    async registerServiceWorker() {
+        if ('serviceWorker' in navigator) {
+            try {
+                this.serviceWorkerRegistration = await navigator.serviceWorker.register('/service-worker.js');
+                console.log('✅ Service Worker registered for persistent notifications');
+
+                // Update service worker when new version available
+                this.serviceWorkerRegistration.addEventListener('updatefound', () => {
+                    const newWorker = this.serviceWorkerRegistration.installing;
+                    console.log('🔄 New Service Worker available');
+                    
+                    newWorker.addEventListener('statechange', () => {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            // New service worker available, reload to update
+                            if (confirm('New version available! Reload to update?')) {
+                                window.location.reload();
+                            }
+                        }
+                    });
+                });
+            } catch (error) {
+                console.warn('⚠️ Service Worker registration failed:', error);
+            }
         }
     }
 
@@ -150,8 +180,38 @@ class NotificationManager {
         }
     }
 
-    showBrowserNotification(title, message) {
+    async showBrowserNotification(title, message, orderId = null) {
         if ('Notification' in window && Notification.permission === 'granted') {
+            // Use Service Worker for persistent notifications (works even when tab closed)
+            if (this.serviceWorkerRegistration && this.serviceWorkerRegistration.active) {
+                try {
+                    await this.serviceWorkerRegistration.showNotification(title, {
+                        body: message,
+                        icon: './assets/logo.png',
+                        badge: './assets/logo.png',
+                        tag: 'order-update',
+                        requireInteraction: false,
+                        vibrate: [200, 100, 200],
+                        data: { orderId },
+                        actions: [
+                            {
+                                action: 'view',
+                                title: 'View Order'
+                            },
+                            {
+                                action: 'dismiss',
+                                title: 'Dismiss'
+                            }
+                        ]
+                    });
+                    console.log('📬 Persistent notification sent via Service Worker');
+                    return;
+                } catch (error) {
+                    console.warn('⚠️ Service Worker notification failed:', error);
+                }
+            }
+
+            // Fallback to regular notification (only works when tab open)
             const notification = new Notification(title, {
                 body: message,
                 icon: './assets/logo.png',
