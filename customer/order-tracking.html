@@ -39,54 +39,6 @@
             <!-- Live Progress Tracker -->
             <div id="progressTracker"></div>
             
-            <!-- Order Status Timeline -->
-            <div class="order-timeline" id="orderTimeline">
-                <div class="timeline-item" data-status="pending">
-                    <div class="timeline-icon">
-                        <i class="fas fa-clock"></i>
-                    </div>
-                    <div class="timeline-content">
-                        <h4>Order Received</h4>
-                        <p>Your order has been placed</p>
-                    </div>
-                </div>
-                <div class="timeline-item" data-status="preparing">
-                    <div class="timeline-icon">
-                        <i class="fas fa-fire"></i>
-                    </div>
-                    <div class="timeline-content">
-                        <h4>Preparing</h4>
-                        <p>Stall is preparing your food</p>
-                    </div>
-                </div>
-                <div class="timeline-item" data-status="ready">
-                    <div class="timeline-icon">
-                        <i class="fas fa-bell"></i>
-                    </div>
-                    <div class="timeline-content">
-                        <h4>Ready for Pickup</h4>
-                        <p>Your order is ready!</p>
-                    </div>
-                </div>
-                <div class="timeline-item" data-status="completed">
-                    <div class="timeline-icon">
-                        <i class="fas fa-check-circle"></i>
-                    </div>
-                    <div class="timeline-content">
-                        <h4>Completed</h4>
-                        <p>Enjoy your meal!</p>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Progress by Stall -->
-            <div class="stall-progress-section">
-                <h3>Progress by Stall</h3>
-                <div id="stallProgress">
-                    <!-- Will be populated dynamically -->
-                </div>
-            </div>
-            
             <!-- Order Details -->
             <div class="order-details-card">
                 <h3>Order Details</h3>
@@ -294,12 +246,6 @@
             // Setup real-time subscription
             setupRealtimeUpdates();
             
-            // Update timeline
-            updateTimeline(currentOrder.status);
-            
-            // Display stall progress
-            displayStallProgress();
-            
             // Display order items
             displayOrderItems();
         }
@@ -327,9 +273,6 @@
                         progressTracker.updateStatus(newStatus);
                     }
                     
-                    // Update timeline
-                    updateTimeline(newStatus);
-                    
                     // Play celebration sound for ready/completed
                     if (newStatus === 'ready' || newStatus === 'completed') {
                         if ('vibrate' in navigator) {
@@ -338,55 +281,6 @@
                     }
                 }
             });
-        }
-        
-        function updateTimeline(status) {
-            const statuses = ['pending', 'preparing', 'ready', 'completed'];
-            const currentIndex = statuses.indexOf(status);
-            
-            document.querySelectorAll('.timeline-item').forEach((item, index) => {
-                if (index <= currentIndex) {
-                    item.classList.add('completed');
-                } else {
-                    item.classList.remove('completed');
-                }
-                
-                if (index === currentIndex) {
-                    item.classList.add('active');
-                } else {
-                    item.classList.remove('active');
-                }
-            });
-        }
-        
-        function displayStallProgress() {
-            const container = document.getElementById('stallProgress');
-            
-            // Initialize stall statuses if not exists
-            if (!currentOrder.stallStatuses) {
-                currentOrder.stallStatuses = {};
-                currentOrder.stallOrders.forEach(stall => {
-                    currentOrder.stallStatuses[stall.stallName] = 'pending';
-                });
-            }
-            
-            container.innerHTML = currentOrder.stallOrders.map(stall => {
-                const status = currentOrder.stallStatuses[stall.stallName] || 'pending';
-                return `
-                    <div class="stall-progress-card ${status}">
-                        <div class="stall-progress-header">
-                            <h4><i class="fas fa-store"></i> ${stall.stallName}</h4>
-                            <span class="status-badge status-${status}">
-                                ${getStatusIcon(status)} ${formatStatus(status)}
-                            </span>
-                        </div>
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="width: ${getProgressWidth(status)}%"></div>
-                        </div>
-                        <p class="progress-time">${getEstimatedTime(status)}</p>
-                    </div>
-                `;
-            }).join('');
         }
         
         function displayOrderItems() {
@@ -554,26 +448,6 @@
                 completed: 'Completed'
             };
             return labels[status] || status;
-        }
-        
-        function getProgressWidth(status) {
-            const widths = {
-                pending: 25,
-                preparing: 50,
-                ready: 75,
-                completed: 100
-            };
-            return widths[status] || 0;
-        }
-        
-        function getEstimatedTime(status) {
-            const times = {
-                pending: 'Estimated time: 15-20 min',
-                preparing: 'Estimated time: 10-15 min',
-                ready: 'Ready for pickup!',
-                completed: 'Completed'
-            };
-            return times[status] || '';
         }
         
         function formatTime(timestamp) {
