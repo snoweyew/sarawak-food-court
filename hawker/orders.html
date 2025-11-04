@@ -259,14 +259,21 @@
         }
         
         async function updateOrderStatus(orderId, newStatus) {
-            console.log('🔄 Updating order status:', orderId, newStatus);
+            console.log('🔄 Updating order status...');
+            console.log('   Order ID:', orderId);
+            console.log('   New Status:', newStatus);
+            console.log('   Stall:', hawkerStall?.stall_name);
             
             try {
                 // Update order status in database
-                const { error } = await supabase
+                const { data, error } = await supabase
                     .from('orders')
-                    .update({ status: newStatus })
-                    .eq('order_id', orderId);
+                    .update({ 
+                        status: newStatus,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('order_id', orderId)
+                    .select();
                 
                 if (error) {
                     console.error('❌ Error updating order:', error);
@@ -274,19 +281,22 @@
                     return;
                 }
                 
-                console.log('✅ Order status updated successfully');
-                showToast(`Order status updated to ${formatStatus(newStatus)}`);
-                loadOrders();
+                console.log('✅ Order status updated successfully:', data);
+                showToast(`Order ${formatStatus(newStatus)}!`);
+                
+                // Reload orders after a short delay
+                setTimeout(() => loadOrders(), 500);
                 
             } catch (error) {
                 console.error('❌ Error in updateOrderStatus:', error);
-                alert('Error updating order');
+                alert('Error updating order: ' + error.message);
             }
         }
         
         function getNextStatus(currentStatus) {
             const flow = {
-                'pending': 'ready',
+                'pending': 'preparing',
+                'preparing': 'ready',
                 'ready': 'completed'
             };
             return flow[currentStatus] || 'completed';
@@ -294,7 +304,8 @@
         
         function getNextStatusLabel(currentStatus) {
             const labels = {
-                'pending': 'Mark Ready',
+                'pending': 'Start Preparing',
+                'preparing': 'Mark Ready',
                 'ready': 'Complete'
             };
             return labels[currentStatus] || 'Update';
@@ -303,8 +314,10 @@
         function formatStatus(status) {
             const labels = {
                 pending: 'Pending',
+                preparing: 'Preparing',
                 ready: 'Ready',
-                completed: 'Completed'
+                completed: 'Completed',
+                cancelled: 'Cancelled'
             };
             return labels[status] || status;
         }
