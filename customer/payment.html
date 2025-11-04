@@ -321,11 +321,10 @@
                 const orderId = 'ORD' + Date.now();
                 console.log('📋 Creating order:', orderId);
                 
-                // Get current user
+                // Get current user (optional - guest checkout allowed)
                 const { data: { user } } = await supabase.auth.getUser();
-                if (!user) {
-                    throw new Error('User not authenticated');
-                }
+                const userId = user ? user.id : null;
+                console.log('👤 User:', userId ? 'Logged in' : 'Guest');
                 
                 // 1. Create order in database
                 const { data: orderData, error: orderError } = await supabase
@@ -333,7 +332,7 @@
                     .insert({
                         order_id: orderId,
                         table_number: table,
-                        user_id: user.id,
+                        user_id: userId,
                         subtotal: subtotal,
                         service_charge: serviceCharge,
                         total: total,
