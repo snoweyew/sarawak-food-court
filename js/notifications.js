@@ -1,93 +1,359 @@
 // ========================================
-// REAL-TIME NOTIFICATIONS
+// REAL-TIME NOTIFICATION SYSTEM
 // ========================================
 
 class NotificationManager {
     constructor() {
+        this.container = null;
+        this.notificationQueue = [];
+        this.maxNotifications = 3;
         this.soundEnabled = true;
-        this.notificationSound = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTA=');
+        this.init();
     }
 
-    // Request permission for browser notifications
-    async requestPermission() {
+    init() {
+        // Create notification container
+        this.container = document.createElement('div');
+        this.container.className = 'notification-bar';
+        document.body.appendChild(this.container);
+
+        // Request notification permission
         if ('Notification' in window && Notification.permission === 'default') {
-            const permission = await Notification.requestPermission();
-            return permission === 'granted';
+            Notification.requestPermission();
         }
-        return Notification.permission === 'granted';
     }
 
-    // Show notification
-    show(title, options = {}) {
-        // Browser notification
-        if ('Notification' in window && Notification.permission === 'granted') {
-            const notification = new Notification(title, {
-                icon: '../assets/images/logo.png',
-                badge: '../assets/images/logo.png',
-                vibrate: [200, 100, 200],
-                ...options
-            });
+    // Show notification with enhanced UI
+    show(options) {
+        const {
+            status,
+            title,
+            message,
+            duration = 5000,
+            sound = true
+        } = options;
 
-            notification.onclick = () => {
-                window.focus();
-                notification.close();
-            };
-        }
+        // Create notification element
+        const notification = this.createNotificationElement(status, title, message);
+        
+        // Add to DOM
+        this.container.appendChild(notification);
 
-        // Toast notification
-        this.showToast(title, options.body);
+        // Show animation
+        setTimeout(() => notification.classList.add('show'), 10);
 
         // Play sound
-        if (this.soundEnabled) {
-            this.playSound();
+        if (sound && this.soundEnabled) {
+            this.playNotificationSound(status);
         }
 
-        // Vibrate if supported
-        if ('vibrate' in navigator) {
-            navigator.vibrate([200, 100, 200]);
+        // Show browser notification (if permission granted)
+        this.showBrowserNotification(title, message);
+
+        // Auto dismiss
+        setTimeout(() => this.dismiss(notification), duration);
+
+        // Manage queue
+        this.notificationQueue.push(notification);
+        if (this.notificationQueue.length > this.maxNotifications) {
+            const oldNotification = this.notificationQueue.shift();
+            this.dismiss(oldNotification);
         }
+
+        return notification;
     }
 
-    // Show toast notification
-    showToast(title, message) {
-        const toast = document.createElement('div');
-        toast.className = 'toast notification';
-        toast.innerHTML = `
-            <i class="fas fa-bell"></i>
-            <div>
-                <strong>${title}</strong>
-                ${message ? `<p>${message}</p>` : ''}
+    createNotificationElement(status, title, message) {
+        const notification = document.createElement('div');
+        notification.className = 'notification-card';
+        
+        const icon = this.getStatusIcon(status);
+        const time = new Date().toLocaleTimeString('en-US', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+        });
+
+        notification.innerHTML = `
+            <div class="notification-icon ${status}">
+                ${icon}
             </div>
+            <div class="notification-content">
+                <div class="notification-title">${title}</div>
+                <div class="notification-message">${message}</div>
+                <div class="notification-time">${time}</div>
+            </div>
+            <button class="notification-close" aria-label="Close notification">
+                ✕
+            </button>
         `;
-        document.body.appendChild(toast);
 
-        setTimeout(() => toast.classList.add('show'), 100);
-        setTimeout(() => {
-            toast.classList.remove('show');
-            setTimeout(() => toast.remove(), 300);
-        }, 5000);
+        // Close button handler
+        notification.querySelector('.notification-close').addEventListener('click', () => {
+            this.dismiss(notification);
+        });
+
+        return notification;
     }
 
-    // Play notification sound
-    playSound() {
+    getStatusIcon(status) {
+        const icons = {
+            'pending': '🕐',
+            'preparing': '👨‍🍳',
+            'ready': '✅',
+            'completed': '🎉',
+            'cancelled': '❌'
+        };
+        return icons[status] || '🔔';
+    }
+
+    dismiss(notification) {
+        notification.classList.add('hide');
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+            const index = this.notificationQueue.indexOf(notification);
+            if (index > -1) {
+                this.notificationQueue.splice(index, 1);
+            }
+        }, 400);
+    }
+
+    playNotificationSound(status) {
+        // Create audio context for notification sounds
         try {
-            this.notificationSound.play().catch(e => console.log('Could not play sound:', e));
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            // Different frequencies for different statuses
+            const frequencies = {
+                'pending': 440,
+                'preparing': 523,
+                'ready': 659,
+                'completed': 784
+            };
+
+            oscillator.frequency.value = frequencies[status] || 440;
+            oscillator.type = 'sine';
+
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
         } catch (e) {
-            console.log('Sound playback failed:', e);
+            console.log('Could not play notification sound:', e);
         }
     }
 
-    // Toggle sound
+    showBrowserNotification(title, message) {
+        if ('Notification' in window && Notification.permission === 'granted') {
+            const notification = new Notification(title, {
+                body: message,
+                icon: './assets/logo.png',
+                badge: './assets/logo.png',
+                tag: 'order-update',
+                requireInteraction: false
+            });
+
+            // Auto close after 5 seconds
+            setTimeout(() => notification.close(), 5000);
+        }
+    }
+
     toggleSound() {
         this.soundEnabled = !this.soundEnabled;
         return this.soundEnabled;
     }
 }
 
-// Create global notification manager
-const notificationManager = new NotificationManager();
+// ========================================
+// PROGRESS TRACKER
+// ========================================
 
-// Order status notifications
+class ProgressTracker {
+    constructor(containerId) {
+        this.container = document.getElementById(containerId);
+        this.steps = ['pending', 'preparing', 'ready', 'completed'];
+        this.currentStep = 'pending';
+    }
+
+    render() {
+        if (!this.container) return;
+
+        const stepLabels = {
+            'pending': 'Order Placed',
+            'preparing': 'Preparing',
+            'ready': 'Ready',
+            'completed': 'Completed'
+        };
+
+        const stepIcons = {
+            'pending': '📝',
+            'preparing': '👨‍🍳',
+            'ready': '✅',
+            'completed': '🎉'
+        };
+
+        this.container.innerHTML = `
+            <div class="progress-tracker">
+                <div class="progress-tracker-title">
+                    <span>🔔</span>
+                    <span>Order Progress</span>
+                    <span class="live-status-badge">
+                        <span class="live-pulse"></span>
+                        <span>Live Updates</span>
+                    </span>
+                </div>
+                <div class="progress-steps">
+                    <div class="progress-line">
+                        <div class="progress-line-fill" style="width: ${this.getProgressWidth()}%"></div>
+                    </div>
+                    ${this.steps.map(step => `
+                        <div class="progress-step ${this.getStepClass(step)}" data-step="${step}">
+                            <div class="progress-step-circle">${stepIcons[step]}</div>
+                            <div class="progress-step-label">${stepLabels[step]}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    getStepClass(step) {
+        const currentIndex = this.steps.indexOf(this.currentStep);
+        const stepIndex = this.steps.indexOf(step);
+
+        if (stepIndex < currentIndex) return 'completed';
+        if (stepIndex === currentIndex) return 'active';
+        return '';
+    }
+
+    getProgressWidth() {
+        const currentIndex = this.steps.indexOf(this.currentStep);
+        return (currentIndex / (this.steps.length - 1)) * 100;
+    }
+
+    updateStatus(newStatus) {
+        if (this.currentStep === newStatus) return;
+        
+        this.currentStep = newStatus;
+        this.render();
+
+        // Trigger notification
+        if (window.notificationManager) {
+            const messages = {
+                'pending': {
+                    title: 'Order Confirmed! 🎉',
+                    message: 'Your order has been placed successfully'
+                },
+                'preparing': {
+                    title: 'Cooking Started! 👨‍🍳',
+                    message: 'Your food is being prepared with love'
+                },
+                'ready': {
+                    title: 'Order Ready! ✅',
+                    message: 'Your delicious food is ready for pickup!'
+                },
+                'completed': {
+                    title: 'Enjoy Your Meal! 🎉',
+                    message: 'Thank you for your order. Bon appétit!'
+                }
+            };
+
+            const notifData = messages[newStatus];
+            if (notifData) {
+                window.notificationManager.show({
+                    status: newStatus,
+                    title: notifData.title,
+                    message: notifData.message
+                });
+            }
+        }
+    }
+}
+
+// ========================================
+// REAL-TIME ORDER SUBSCRIPTION
+// ========================================
+
+class OrderSubscription {
+    constructor(orderId, supabase) {
+        this.orderId = orderId;
+        this.supabase = supabase;
+        this.subscription = null;
+        this.onUpdate = null;
+    }
+
+    async subscribe(callback) {
+        this.onUpdate = callback;
+
+        console.log('📡 Setting up real-time subscription for order:', this.orderId);
+
+        // Subscribe to order changes
+        this.subscription = this.supabase
+            .channel(`order-${this.orderId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'orders',
+                    filter: `order_id=eq.${this.orderId}`
+                },
+                (payload) => {
+                    console.log('📡 Order update received:', payload);
+                    if (this.onUpdate) {
+                        this.onUpdate(payload.new);
+                    }
+                }
+            )
+            .subscribe((status) => {
+                if (status === 'SUBSCRIBED') {
+                    console.log('✅ Subscribed to real-time updates for order:', this.orderId);
+                } else {
+                    console.log('📡 Subscription status:', status);
+                }
+            });
+
+        // Also subscribe to order_items changes for more granular updates
+        this.supabase
+            .channel(`order-items-${this.orderId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'order_items',
+                    filter: `order_id=eq.${this.orderId}`
+                },
+                (payload) => {
+                    console.log('📡 Order item update received:', payload);
+                    if (this.onUpdate) {
+                        this.onUpdate({ status: payload.new.status });
+                    }
+                }
+            )
+            .subscribe();
+    }
+
+    unsubscribe() {
+        if (this.subscription) {
+            this.supabase.removeChannel(this.subscription);
+            console.log('🔌 Unsubscribed from order updates');
+        }
+    }
+}
+
+// ========================================
+// LEGACY FUNCTIONS (for compatibility)
+// ========================================
+
+// Order status notifications (legacy)
 function notifyOrderStatusChange(orderId, oldStatus, newStatus) {
     const statusMessages = {
         pending: 'Your order has been received',
@@ -96,29 +362,35 @@ function notifyOrderStatusChange(orderId, oldStatus, newStatus) {
         completed: 'Order completed. Enjoy your meal!'
     };
 
-    notificationManager.show(
-        `Order ${orderId}`,
-        {
-            body: statusMessages[newStatus],
-            tag: orderId,
-            requireInteraction: newStatus === 'ready'
-        }
-    );
+    if (window.notificationManager) {
+        window.notificationManager.show({
+            status: newStatus,
+            title: `Order ${orderId}`,
+            message: statusMessages[newStatus]
+        });
+    }
 }
 
-// Hawker new order notification
+// Hawker new order notification (legacy)
 function notifyNewOrder(orderId, tableNumber) {
-    notificationManager.show(
-        'New Order!',
-        {
-            body: `New order ${orderId} from Table ${tableNumber}`,
-            tag: 'new-order',
-            requireInteraction: true
-        }
-    );
+    if (window.notificationManager) {
+        window.notificationManager.show({
+            status: 'pending',
+            title: 'New Order! 🔔',
+            message: `New order ${orderId} from Table ${tableNumber}`
+        });
+    }
 }
 
-// Export
+// Initialize global notification manager
+window.notificationManager = new NotificationManager();
+
+// Export for use in other scripts
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { NotificationManager, notificationManager };
+    module.exports = { 
+        NotificationManager, 
+        ProgressTracker, 
+        OrderSubscription,
+        notificationManager: window.notificationManager 
+    };
 }

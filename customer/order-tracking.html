@@ -6,6 +6,7 @@
     <title>Order Tracking - Sarawak Food Court</title>
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="../css/customer.css">
+    <link rel="stylesheet" href="../css/notifications.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
@@ -27,6 +28,9 @@
                 <h2>Current Order</h2>
                 <span class="order-number" id="currentOrderId">-</span>
             </div>
+            
+            <!-- Live Progress Tracker -->
+            <div id="progressTracker"></div>
             
             <!-- Order Status Timeline -->
             <div class="order-timeline" id="orderTimeline">
@@ -136,12 +140,20 @@
     <script>
         let currentOrder = null;
         let orderUpdateInterval = null;
+        let progressTracker = null;
+        let orderSubscription = null;
+        
         const supabase = window.supabase.createClient(
             'https://mtmkghuhhrerlcubhzot.supabase.co',
             'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10bWtnaHVoaHJlcmxjdWJoem90Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1Mzc5NzIsImV4cCI6MjA3NzExMzk3Mn0.kA-NUWidhSRNPotmVe3KIclk8LpizR26DzxIBn5C1rA'
         );
         
         document.addEventListener('DOMContentLoaded', () => {
+            // Request notification permission
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+            
             loadOrders();
             
             // Start real-time updates (simulate)
@@ -265,6 +277,16 @@
             document.getElementById('orderTime').textContent = formatTime(currentOrder.timestamp);
             document.getElementById('orderTotal').textContent = `RM ${currentOrder.total.toFixed(2)}`;
             
+            // Initialize progress tracker
+            if (!progressTracker) {
+                progressTracker = new ProgressTracker('progressTracker');
+            }
+            progressTracker.currentStep = currentOrder.status;
+            progressTracker.render();
+            
+            // Setup real-time subscription
+            setupRealtimeUpdates();
+            
             // Update timeline
             updateTimeline(currentOrder.status);
             
@@ -273,6 +295,42 @@
             
             // Display order items
             displayOrderItems();
+        }
+        
+        function setupRealtimeUpdates() {
+            if (orderSubscription) {
+                orderSubscription.unsubscribe();
+            }
+            
+            orderSubscription = new OrderSubscription(currentOrder.orderId, supabase);
+            orderSubscription.subscribe((updatedOrder) => {
+                console.log('🔄 Real-time update received:', updatedOrder);
+                
+                const oldStatus = currentOrder.status;
+                const newStatus = updatedOrder.status;
+                
+                if (oldStatus !== newStatus) {
+                    console.log(`📊 Status changed: ${oldStatus} → ${newStatus}`);
+                    
+                    // Update current order
+                    currentOrder.status = newStatus;
+                    
+                    // Update progress tracker
+                    if (progressTracker) {
+                        progressTracker.updateStatus(newStatus);
+                    }
+                    
+                    // Update timeline
+                    updateTimeline(newStatus);
+                    
+                    // Play celebration sound for ready/completed
+                    if (newStatus === 'ready' || newStatus === 'completed') {
+                        if ('vibrate' in navigator) {
+                            navigator.vibrate([200, 100, 200, 100, 200]);
+                        }
+                    }
+                }
+            });
         }
         
         function updateTimeline(status) {
@@ -551,6 +609,9 @@
         window.addEventListener('beforeunload', () => {
             if (orderUpdateInterval) {
                 clearInterval(orderUpdateInterval);
+            }
+            if (orderSubscription) {
+                orderSubscription.unsubscribe();
             }
         });
     </script>
