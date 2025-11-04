@@ -127,19 +127,76 @@
             }
         }
         
-        function loadOrders() {
-            const orders = JSON.parse(localStorage.getItem('orders') || '[]');
+        async function loadOrders() {
+            console.log('📋 Loading orders from database...');
             
-            // Filter orders for this stall (only pending and ready, exclude completed)
-            allOrders = orders.filter(order => {
-                const stallOrder = order.stallOrders.find(so => so.stallName === session.stallName);
-                if (!stallOrder) return false;
+            if (!hawkerStall) {
+                console.log('⏳ Waiting for stall info...');
+                return;
+            }
+            
+            try {
+                // Load orders from database for this stall
+                const { data: orderItems, error } = await supabase
+                    .from('order_items')
+                    .select(`
+                        *,
+                        orders:order_id (
+                            id,
+                            order_id,
+                            table_number,
+                            status,
+                            created_at
+                        )
+                    `)
+                    .eq('stall_id', hawkerStall.id)
+                    .in('orders.status', ['pending', 'preparing', 'ready']);
                 
-                const status = order.stallStatuses?.[session.stallName] || 'pending';
-                return status === 'pending' || status === 'ready';
-            }).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-            
-            displayOrders();
+                if (error) {
+                    console.error('❌ Error loading orders:', error);
+                    document.getElementById('ordersContainer').innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <p>Error loading orders</p>
+                            <small>${error.message}</small>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                console.log('✅ Order items loaded:', orderItems);
+                
+                // Group items by order
+                const ordersMap = {};
+                orderItems.forEach(item => {
+                    const order = item.orders;
+                    if (!order) return;
+                    
+                    if (!ordersMap[order.id]) {
+                        ordersMap[order.id] = {
+                            orderId: order.order_id,
+                            tableNumber: order.table_number,
+                            status: order.status,
+                            timestamp: order.created_at,
+                            items: []
+                        };
+                    }
+                    
+                    ordersMap[order.id].items.push({
+                        name: item.item_name,
+                        quantity: item.quantity,
+                        price: parseFloat(item.price)
+                    });
+                });
+                
+                allOrders = Object.values(ordersMap);
+                console.log('📦 Processed orders:', allOrders);
+                
+                displayOrders();
+                
+            } catch (error) {
+                console.error('❌ Error in loadOrders:', error);
+            }
         }
         
         function displayOrders() {
@@ -157,8 +214,8 @@
             }
             
             container.innerHTML = allOrders.map(order => {
-                const stallOrder = order.stallOrders.find(so => so.stallName === session.stallName);
-                const status = order.stallStatuses?.[session.stallName] || 'pending';
+                const total = order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                const status = order.status || 'pending';
                 
                 return `
                     <div class="order-detail-card">
@@ -173,13 +230,10 @@
                         </div>
                         
                         <div class="order-items-list">
-                            ${stallOrder.items.map(item => `
+                            ${order.items.map(item => `
                                 <div class="order-item-row">
                                     <div class="item-info">
                                         <strong>${item.name}</strong> × ${item.quantity}
-                                        ${item.specialInstructions ? 
-                                            `<p class="item-note"><i class="fas fa-comment"></i> ${item.specialInstructions}</p>` 
-                                            : ''}
                                     </div>
                                     <span>RM ${(item.price * item.quantity).toFixed(2)}</span>
                                 </div>
@@ -188,7 +242,7 @@
                         
                         <div class="order-card-footer">
                             <div class="order-total">
-                                <strong>Total: RM ${stallOrder.total.toFixed(2)}</strong>
+                                <strong>Total: RM ${total.toFixed(2)}</strong>
                             </div>
                             <div class="order-status-actions">
                                 <span class="status-badge status-${status}">${formatStatus(status)}</span>
@@ -204,27 +258,29 @@
             }).join('');
         }
         
-        function updateOrderStatus(orderId, newStatus) {
-            const orders = JSON.parse(localStorage.getItem('orders') || '[]');
-            const order = orders.find(o => o.orderId === orderId);
+        async function updateOrderStatus(orderId, newStatus) {
+            console.log('🔄 Updating order status:', orderId, newStatus);
             
-            if (order) {
-                if (!order.stallStatuses) {
-                    order.stallStatuses = {};
-                }
-                order.stallStatuses[session.stallName] = newStatus;
+            try {
+                // Update order status in database
+                const { error } = await supabase
+                    .from('orders')
+                    .update({ status: newStatus })
+                    .eq('order_id', orderId);
                 
-                localStorage.setItem('orders', JSON.stringify(orders));
-                
-                // Update current order if it's the active one
-                const currentOrder = JSON.parse(localStorage.getItem('currentOrder') || 'null');
-                if (currentOrder && currentOrder.orderId === orderId) {
-                    currentOrder.stallStatuses = order.stallStatuses;
-                    localStorage.setItem('currentOrder', JSON.stringify(currentOrder));
+                if (error) {
+                    console.error('❌ Error updating order:', error);
+                    alert('Error updating order: ' + error.message);
+                    return;
                 }
                 
-                loadOrders();
+                console.log('✅ Order status updated successfully');
                 showToast(`Order status updated to ${formatStatus(newStatus)}`);
+                loadOrders();
+                
+            } catch (error) {
+                console.error('❌ Error in updateOrderStatus:', error);
+                alert('Error updating order');
             }
         }
         
