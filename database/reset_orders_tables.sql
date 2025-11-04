@@ -98,7 +98,7 @@ CREATE POLICY "Hawkers can view their stall's order items"
         EXISTS (
             SELECT 1 FROM hawker_stalls
             WHERE hawker_stalls.id = order_items.stall_id
-            AND hawker_stalls.owner_id = auth.uid()
+            AND hawker_stalls.hawker_id = auth.uid()
         )
     );
 
