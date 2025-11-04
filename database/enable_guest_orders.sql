@@ -1,8 +1,21 @@
 -- Allow Guest Orders (No Login Required)
 -- Run this in Supabase SQL Editor to allow orders without user authentication
 
--- 1. Make user_id optional (allow NULL for guest orders)
-ALTER TABLE orders ALTER COLUMN user_id DROP NOT NULL;
+-- 1. Add user_id column if it doesn't exist (allow NULL for guest orders)
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'orders' AND column_name = 'user_id'
+    ) THEN
+        ALTER TABLE orders ADD COLUMN user_id UUID REFERENCES users(id);
+        RAISE NOTICE 'user_id column added to orders table';
+    ELSE
+        -- If it exists, make it nullable
+        ALTER TABLE orders ALTER COLUMN user_id DROP NOT NULL;
+        RAISE NOTICE 'user_id column already exists, made nullable';
+    END IF;
+END $$;
 
 -- 2. Update RLS policies to allow guest orders
 
