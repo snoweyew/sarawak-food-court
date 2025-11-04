@@ -112,6 +112,11 @@
     
     <script src="../js/app.js"></script>
     <script>
+        // Initialize Supabase (global)
+        const SUPABASE_URL = 'https://mtmkghuhhrerlcubhzot.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10bWtnaHVoaHJlcmxjdWJoem90Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1Mzc5NzIsImV4cCI6MjA3NzExMzk3Mn0.kA-NUWidhSRNPotmVe3KIclk8LpizR26DzxIBn5C1rA';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
         let paymentsByStall = {};
         let currentStallPayment = null;
         let paidStalls = new Set();
@@ -146,11 +151,6 @@
             
             // Load stall QR codes from Supabase
             try {
-                // Initialize Supabase
-                const SUPABASE_URL = 'https://mtmkghuhhrerlcubhzot.supabase.co';
-                const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10bWtnaHVoaHJlcmxjdWJoem90Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1Mzc5NzIsImV4cCI6MjA3NzExMzk3Mn0.kA-NUWidhSRNPotmVe3KIclk8LpizR26DzxIBn5C1rA';
-                const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                
                 // Get all unique stall names
                 const stallNames = Object.keys(paymentsByStall);
                 
