@@ -152,34 +152,28 @@
             const urlParams = new URLSearchParams(window.location.search);
             const orderId = urlParams.get('order');
             
+            console.log('📋 Loading orders... Order ID:', orderId);
+            
             try {
-                // Get current user
-                const { data: { user } } = await supabase.auth.getUser();
-                if (!user) {
-                    console.log('No user logged in');
-                    return;
-                }
-                
-                // Load current order from database
+                // Load current order from database (works for guests too!)
                 if (orderId) {
+                    console.log('🔍 Loading order from database:', orderId);
                     await loadOrderFromDatabase(orderId);
                 } else {
-                    // Load most recent pending order
-                    const { data: orders } = await supabase
-                        .from('orders')
-                        .select('*, order_items(*), order_payments(*)')
-                        .eq('user_id', user.id)
-                        .in('status', ['pending', 'preparing', 'ready'])
-                        .order('created_at', { ascending: false })
-                        .limit(1);
-                    
-                    if (orders && orders.length > 0) {
-                        currentOrder = transformDatabaseOrder(orders[0]);
+                    console.log('⚠️ No order ID in URL');
+                    // Try to get from localStorage as fallback
+                    const savedOrderId = localStorage.getItem('currentOrderId');
+                    if (savedOrderId) {
+                        console.log('📦 Found saved order ID:', savedOrderId);
+                        await loadOrderFromDatabase(savedOrderId);
                     }
                 }
                 
                 if (currentOrder) {
+                    console.log('✅ Order loaded successfully:', currentOrder.orderId);
                     displayCurrentOrder();
+                } else {
+                    console.log('❌ No order found');
                 }
                 
                 // Load order history
@@ -191,6 +185,8 @@
         }
         
         async function loadOrderFromDatabase(orderId) {
+            console.log('🔄 Fetching order from database...');
+            
             const { data: order, error } = await supabase
                 .from('orders')
                 .select('*, order_items(*), order_payments(*)')
@@ -198,11 +194,23 @@
                 .single();
             
             if (error) {
-                console.error('Error loading order:', error);
+                console.error('❌ Error loading order:', error);
+                alert('Error loading order: ' + error.message);
                 return;
             }
             
+            if (!order) {
+                console.error('❌ Order not found:', orderId);
+                alert('Order not found!');
+                return;
+            }
+            
+            console.log('✅ Order data from database:', order);
+            console.log('📦 Order items:', order.order_items);
+            console.log('💳 Order payments:', order.order_payments);
+            
             currentOrder = transformDatabaseOrder(order);
+            console.log('🔄 Transformed order:', currentOrder);
         }
         
         function transformDatabaseOrder(dbOrder) {
@@ -341,34 +349,29 @@
             const container = document.getElementById('orderHistory');
             
             try {
-                // Get current user
-                const { data: { user } } = await supabase.auth.getUser();
-                if (!user) {
-                    container.innerHTML = `
-                        <div class="empty-state">
-                            <i class="fas fa-receipt"></i>
-                            <p>No previous orders</p>
-                        </div>
-                    `;
-                    return;
-                }
+                // For now, just show empty state for guest users
+                // In the future, you can load orders by table number
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-receipt"></i>
+                        <p>No previous orders</p>
+                    </div>
+                `;
+                return;
                 
-                // Load completed orders from database
+                /* Future enhancement: Load orders by table number
+                const tableNumber = localStorage.getItem('tableNumber');
                 const { data: orders, error } = await supabase
                     .from('orders')
                     .select('*, order_items(*)')
-                    .eq('user_id', user.id)
+                    .eq('table_number', tableNumber)
                     .eq('status', 'completed')
                     .order('created_at', { ascending: false })
                     .limit(10);
-                
-                if (error) {
-                    console.error('Error loading order history:', error);
-                    return;
-                }
+                */
                 
                 // Filter out current order
-                const history = orders.filter(o => o.order_id !== currentOrder?.orderId);
+                const history = [];
                 
                 if (history.length === 0) {
                     container.innerHTML = `
